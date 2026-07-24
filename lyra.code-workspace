@@ -1,0 +1,19 @@
+{
+	"folders": [
+		{
+			"path": "lyra"
+		},
+		{
+			"path": "lyra-vscode-ext"
+		},
+		{
+			"path": "tree-sitter-lyra"
+		},
+		{
+			"path": "lyra-website"
+		}
+	],
+	"settings": {
+		"lyra.languageServerPath": "/Users/avrameisner/.local/bin/lyra-lsp"
+	}
+}
