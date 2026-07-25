@@ -47,7 +47,7 @@ source text
 - **`pkg/parser`** — thin CGO wrapper around tree-sitter; returns `*sitter.Tree`
 - **`pkg/ast`** — AST node definitions; all nodes embed `AstBase` (holds `Location`); top-level interfaces are `Statement`, `Expression`, `Pattern`
 - **`pkg/ast/symbols`** — lexical `SymbolTable` with a `Scope` tree (Global → Module → Function → Block/Loop); quick-lookup maps for `Types` and `Functions`
-- **`pkg/types`** — `Type` interface and all implementations: `PrimitiveType`, `StructType`, `DataType`, `LambdaType`, `TupleType`, `ArrayType`, `ConstrainedType`, `PointerType`, `GenericType`, `SelfType`, `VoidType`, `UnresolvedType`
+- **`pkg/types`** — `Type` interface and all implementations: `PrimitiveType`, `StructType`, `DataType`, `LambdaType`, `TupleType`, `ArrayType`, `ConstrainedType`, `PointerType`, `WeakType` (a non-owning `weak T` reference — pointer-sized, non-managed), `GenericType`, `SelfType`, `VoidType`, `UnresolvedType`
 - **`pkg/typetable`** — maps `ast.Expression` nodes → resolved `types.Type`; populated by the typechecker, consumed by later passes
 - **`pkg/analyzer/collector`** — main CST→AST walker; `collector.go` owns top-level dispatch (`CollectStatement`, `CollectExpr`, `ParseType`); subpackages handle `declarations/`, `typedecls/`, `expressions/`, `statements/`
 - **`pkg/analyzer/typechecker`** — walks the AST, infers and checks types, writes results into `TypeTable`
