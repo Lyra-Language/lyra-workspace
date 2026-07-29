@@ -6,3 +6,5 @@
 !.gitignore
 !CLAUDE.md
 !lyra.code-workspace
+!setup.sh
+!setup.ps1
