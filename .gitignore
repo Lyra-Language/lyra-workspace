@@ -4,6 +4,7 @@
 # workspace-level files worth versioning — nothing gets committed by accident.
 *
 !.gitignore
+!README.md
 !CLAUDE.md
 !lyra.code-workspace
 !setup.sh

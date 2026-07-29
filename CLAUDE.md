@@ -23,7 +23,7 @@ The Go module (`github.com/Lyra-Language/lyra`) depends on the tree-sitter gramm
 
 Each sub-project is its **own independent Git repo** with its own remote under `Lyra-Language`; the workspace repo tracks only `CLAUDE.md`, `lyra.code-workspace`, and the two setup scripts (`.gitignore` ignores everything else by default, so a sub-project can never be committed here by accident). They are **not** submodules — nothing pins their commits — so a fresh clone of `lyra-workspace` gets the docs but none of the code.
 
-`setup.sh` (macOS/Linux) and `setup.ps1` (Windows) reconstitute the tree:
+`setup.sh` (macOS/Linux) and `setup.ps1` (Windows) reconstitute the tree (`README.md` documents this for humans, incl. per-OS prerequisites and the Windows execution-policy step):
 
 ```bash
 ./setup.sh              # clone anything missing, fetch what's already there
