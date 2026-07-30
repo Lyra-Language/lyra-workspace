@@ -125,6 +125,16 @@ Then open `lyra.code-workspace` in VS Code to get all four projects in one windo
 
 **A repo shows as "ahead"/"behind" and won't update** — that is `--pull` refusing to touch work you might lose. Resolve it yourself in that repo (commit, stash, push, or merge), then re-run.
 
+**`npm run test` / `npm run build` in `tree-sitter-lyra` can't find `aarch64-linux-gnu-gcc`** — on ARM64 Linux only. Nothing is wrong with the grammar. The tree-sitter CLI compiles `src/parser.c` + `src/scanner.c` on the fly using Rust's `cc` crate, and the prebuilt `linux-arm64` CLI binary was itself cross-compiled, so its baked-in host triple differs from its target triple. `cc` reads that as cross-compilation and prefixes the compiler name with the target triple, looking for a cross-toolchain you don't have. Set `CC` explicitly — `cc` uses a plain `CC` verbatim and skips the prefixing:
+
+```bash
+CC=gcc npm run test
+```
+
+Add `export CC=gcc` to your shell profile to make it stick. (Symlinking `gcc` to the prefixed name, or installing the real cross toolchain, work too — the env var is just the cheapest.)
+
+**The parser compile gets killed partway through** — `src/parser.c` is ~115 MB, and `cc1` wants real memory to chew through it. On a small VM this shows up as an OOM kill rather than a compiler error. Give the VM more RAM or add swap.
+
 ## Working on Lyra
 
 Each sub-project has its own `README.md` and `CLAUDE.md` with detailed build, test, and architecture notes. Start with [`lyra/`](https://github.com/Lyra-Language/lyra).
