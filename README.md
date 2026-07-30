@@ -148,4 +148,16 @@ cd ../lyra && go clean -cache && go test ./...
 
 The cache step is not optional: the Go binding pulls the grammar in via `#include "../../src/parser.c"`, and Go's build cache does not hash `#include`d files — so a regenerated parser does not invalidate the compiled object on its own.
 
+## Running the suite on Linux
+
+`./asan.sh` runs the tests in a Debian container. Needs Docker running; nothing else to set up (it mounts the two repos and builds its own image on first use).
+
+```bash
+./asan.sh              # the AddressSanitizer suite
+./asan.sh ./...        # the whole suite, on Linux
+./asan.sh --shell      # poke around inside the container
+```
+
+Worth doing before pushing anything that touches the memory model. It catches real memory faults, and also invalid LLVM IR that the newer clang on macOS cannot diagnose at all — Debian's clang still uses typed pointers, so it rejects function-type mismatches that opaque pointers render invisible.
+
 `CLAUDE.md` in this directory explains why, along with the rest of the workspace-level context.

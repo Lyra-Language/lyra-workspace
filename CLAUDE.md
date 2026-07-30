@@ -35,6 +35,22 @@ Both are idempotent and safe to re-run. `--pull` fast-forwards **only** a clean 
 
 **git-lfs is a hard prerequisite for `tree-sitter-lyra`**, not a nicety: its `.gitattributes` routes `src/parser.c` (~115 MB) through the LFS filter, so without `git-lfs` on `PATH` git invokes it mid-checkout and the clone dies partway. The scripts detect this up front, skip that repo with an install hint rather than leaving a broken half-clone, and still process the others (exiting non-zero). Any failed clone has its partial directory removed so a re-run retries cleanly.
 
+## Running the Suite on Linux (`asan.sh`)
+
+`./asan.sh` runs the test suite in a Debian container (`asan.Dockerfile`), mounting both `lyra/` and `tree-sitter-lyra/` read-only — both, because the Go module reaches the grammar through a `replace` directive, so a container with only `lyra` cannot resolve its own dependency. No Node or tree-sitter CLI is needed: the generated `src/parser.c` is already checked out via git-lfs and the container only compiles it (which also sidesteps the arm64-Linux tree-sitter build quirk needing `CC=gcc`). Caches live in a named volume, never in the mounted tree, so Linux artifacts can't mix with the host's macOS ones.
+
+```bash
+./asan.sh                 # the ASan suite (pkg/backend/llvm)
+./asan.sh ./...           # the whole suite, on Linux
+./asan.sh --shell         # interactive shell in the container
+./asan.sh --rebuild       # rebuild the image
+LEAKS=1 ./asan.sh         # also enable LeakSanitizer (expect known-accepted noise)
+```
+
+**Two things it is for, and one it is not.** It catches (a) genuine memory faults, and (b) **invalid IR that modern clang cannot even diagnose**: Debian's older clang still uses *typed pointers*, so it rejects a function-type mismatch that Apple clang 21's opaque pointers make indistinguishable — which is how a real miscompile was found where a `(u8, u8)` tuple argument was built at the i64 default width. It is **not** the fix for ASan missing memory faults; that was missing `sanitize_address` instrumentation, which affected macOS and Linux equally and is fixed in the harness (see `lyra/CLAUDE.md`'s backend-testing section). Two `lyrac`-level Linux gaps it surfaces are logged under `lyra/todo.md`'s Known Bugs.
+
+The script **preflights** that ASan actually links and runs, and fails hard if not. Debian's `clang` package does not pull in `libclang-rt-dev`, and without it every ASan test *skips* — a green run that verified nothing, which is exactly what the first build of this image did.
+
 ## Critical Cross-Project Dependency
 
 After changing `tree-sitter-lyra/grammar.js`:

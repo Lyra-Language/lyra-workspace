@@ -9,3 +9,5 @@
 !lyra.code-workspace
 !setup.sh
 !setup.ps1
+!asan.sh
+!asan.Dockerfile
