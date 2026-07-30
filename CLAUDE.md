@@ -1,12 +1,12 @@
 # Lyra — Project Context
 
-Lyra is a programming language under active development. This workspace contains four sub-projects — three tightly coupled (grammar, compiler, editor extension) plus the public website.
+Lyra is a programming language under active development. This workspace contains five sub-projects — four tightly coupled (grammar, compiler, two editor extensions) plus the public website.
 
 ## Working Agreements
 
 - **Commit directly to `main`.** Do not create feature branches — this is a single-developer workspace and all work goes straight to `main`. Commit only when asked.
 - **Keep todo items succinct.** When tracking work in a todo list, keep each item to 2–3 sentences max.
-- **Maintenance:** When making code changes, update the relevant `CLAUDE.md` file(s) to reflect them — this includes new packages, renamed files, changed commands, updated architecture, and shifts in development focus. There is a `CLAUDE.md` at the workspace root (this file) and one in each sub-project: `lyra/CLAUDE.md`, `tree-sitter-lyra/CLAUDE.md`, `lyra-vscode-ext/CLAUDE.md`, and `lyra-website/CLAUDE.md`.
+- **Maintenance:** When making code changes, update the relevant `CLAUDE.md` file(s) to reflect them — this includes new packages, renamed files, changed commands, updated architecture, and shifts in development focus. There is a `CLAUDE.md` at the workspace root (this file) and one in each sub-project: `lyra/CLAUDE.md`, `tree-sitter-lyra/CLAUDE.md`, `lyra-vscode-ext/CLAUDE.md`, `lyra-zed-ext/CLAUDE.md`, and `lyra-website/CLAUDE.md`.
 
 ## Sub-Projects
 
@@ -15,6 +15,7 @@ Lyra is a programming language under active development. This workspace contains
 | `tree-sitter-lyra/` | JavaScript | tree-sitter grammar for Lyra |
 | `lyra/` | Go | Parser, AST, type system, collector, typechecker, LSP server, compiler CLI |
 | `lyra-vscode-ext/` | TypeScript | VS Code extension — launches the LSP server |
+| `lyra-zed-ext/` | Rust (wasm) | Zed extension — launches the LSP server; owns its own tree-sitter queries |
 | `lyra-website/` | Astro | Public site — dev blog and docs/guides (Starlight) |
 
 The Go module (`github.com/Lyra-Language/lyra`) depends on the tree-sitter grammar via a `replace` directive pointing to `../tree-sitter-lyra`. Each sub-project has its own detailed command and architecture notes in its `CLAUDE.md`.
@@ -67,6 +68,8 @@ Skipping step 2 causes tests to silently run against the old grammar.
 1. **Push ordering.** A grammar change must be **pushed to `tree-sitter-lyra` before (or with) the `lyra` code that depends on it** — push `tree-sitter-lyra` first, then `lyra`. Pushing only the `lyra` side leaves CI regenerating from an old `grammar.js`, so every test exercising the new grammar fails. `src/parser.c` is stored via Git LFS, so the push uploads it as an LFS object.
 2. **Build-cache staleness (the subtle one).** The CGO binding pulls the grammar in with `#include "../../src/parser.c"` (`tree-sitter-lyra/bindings/go/binding.go`). Go's build cache hashes the `.go` files and tracked cgo sources but **not** files brought in via `#include`, so a regenerated `parser.c` does **not** invalidate the compiled-parser object that `setup-go` restores from a previous run. Without a `go clean -cache` **after** regeneration, CI silently reuses the stale grammar even when the remote is fully up to date — the rune work failed CI this way *after* the grammar was correctly pushed. The CI workflow now runs `go clean -cache` post-regeneration (the same local step in the numbered list above); keep that step.
 
+**A third consumer, with the same push-first rule.** `lyra-zed-ext/extension.toml` pins `tree-sitter-lyra` **by commit**, and Zed clones that repo and compiles `src/parser.c` itself — it never reads the sibling checkout either. So a grammar change reaches Zed only once it is pushed *and* the pin is bumped; a pin to an unpushed commit fails the grammar build outright. The tree-sitter queries that go with it live in `lyra-zed-ext/languages/lyra/`, not in the grammar repo, and a query naming a node that no longer exists makes Zed drop the whole file — every Lyra buffer loses all highlighting at once rather than one rule quietly going missing. See `lyra-zed-ext/CLAUDE.md` for how to verify them.
+
 ## Data Flow
 
 ```
@@ -92,6 +95,14 @@ Internal (literal inference only): `untyped_int`, `untyped_signed_int`, `untyped
 ## VS Code Extension (`lyra-vscode-ext/`)
 
 `src/extension.ts` starts the LSP client, which spawns `lyra-lsp` via stdio. The server path defaults to `lyra-lsp` on `$PATH` and is overridable via the `lyra.languageServerPath` VS Code setting.
+
+## Zed Extension (`lyra-zed-ext/`)
+
+A Rust cdylib compiled to `wasm32-wasip1`. `src/lyra.rs` resolves the server binary — Zed settings (`lsp.lyra-lsp.binary.path`) → `lyra-lsp` on `$PATH` → `build/lyra-lsp` under the worktree root — and hands Zed the command to spawn; Zed owns the LSP client itself.
+
+The two extensions differ in one structural way: **Zed highlights from tree-sitter, so this repo carries its own queries** (`languages/lyra/{highlights,brackets,indents,outline}.scm`) where VS Code uses a hand-written TextMate grammar. Those queries are a deliberate sibling of `tree-sitter-lyra/queries/highlights.scm` rather than a copy — the grammar's file targets nvim-treesitter's capture names and Zed's themes key off a different set, so the nvim names would render as the wrong style instead of failing visibly. Both files need updating when the grammar gains a node.
+
+Install it with **Install Dev Extension** on Zed's Extensions page (there is no CLI for this). Not published to the Zed registry yet.
 
 ## Current Development Focus
 

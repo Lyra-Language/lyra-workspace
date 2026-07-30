@@ -1,7 +1,7 @@
 # Thin workspace-docs repo: the sub-projects (lyra/, tree-sitter-lyra/,
-# lyra-vscode-ext/, lyra-website/) are their own independent Git repos and must
-# NOT be tracked here. Ignore everything by default, then opt in only the
-# workspace-level files worth versioning — nothing gets committed by accident.
+# lyra-vscode-ext/, lyra-zed-ext/, lyra-website/) are their own independent Git
+# repos and must NOT be tracked here. Ignore everything by default, then opt in
+# only the workspace-level files worth versioning — nothing gets committed by accident.
 *
 !.gitignore
 !README.md
