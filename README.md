@@ -2,13 +2,14 @@
 
 Development workspace for [Lyra](https://github.com/Lyra-Language), a programming language under active development.
 
-This repository is intentionally thin. It tracks only the workspace-level files — this README, `CLAUDE.md`, `lyra.code-workspace`, and the two setup scripts. The actual code lives in four **independent Git repos** that this repo does *not* track:
+This repository is intentionally thin. It tracks only the workspace-level files — this README, `CLAUDE.md`, `lyra.code-workspace`, and the two setup scripts. The actual code lives in five **independent Git repos** that this repo does *not* track:
 
 | Directory | Language | Purpose |
 |---|---|---|
 | [`tree-sitter-lyra/`](https://github.com/Lyra-Language/tree-sitter-lyra) | JavaScript | tree-sitter grammar for Lyra |
 | [`lyra/`](https://github.com/Lyra-Language/lyra) | Go | Parser, AST, type system, typechecker, LSP server, compiler CLI |
 | [`lyra-vscode-ext/`](https://github.com/Lyra-Language/lyra-vscode-ext) | TypeScript | VS Code extension — launches the LSP server |
+| [`lyra-zed-ext/`](https://github.com/Lyra-Language/lyra-zed-ext) | Rust (wasm) | Zed extension — launches the LSP server |
 | [`lyra-website/`](https://github.com/Lyra-Language/lyra-website) | Astro | Public site — dev blog and docs/guides |
 
 They are **not** submodules — nothing here pins their commits, so each moves independently. A fresh clone of this repo gets the docs but none of the code; `setup.sh` / `setup.ps1` fetch the rest.
@@ -38,7 +39,7 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 .\setup.ps1
 ```
 
-After either, you should have all four sub-projects checked out beside each other.
+After either, you should have all five sub-projects checked out beside each other.
 
 ## Prerequisites
 
@@ -62,6 +63,7 @@ git lfs install
 | Go 1.25.4+ | building and testing `lyra/` |
 | A C compiler (clang/gcc) | the parser is CGO; the LLVM backend tests compile and run real binaries |
 | Node.js 22.12+ | `tree-sitter-lyra/` and `lyra-website/` (Astro 7 requires ≥ 22.12) |
+| `rustup` | `lyra-zed-ext/` — Zed builds the extension to wasm and adds the `wasm32-wasip1` target itself |
 
 ## Running setup
 
@@ -105,7 +107,7 @@ go build ./...
 go test ./...
 ```
 
-Then open `lyra.code-workspace` in VS Code to get all four projects in one window.
+Then open `lyra.code-workspace` in VS Code to get all five projects in one window.
 
 > Note: `lyra.code-workspace` contains a `lyra.languageServerPath` pointing at a local `lyra-lsp` binary. Change it to wherever you install yours, or remove it to fall back to `lyra-lsp` on your `PATH`.
 

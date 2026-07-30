@@ -7,6 +7,9 @@
 			"path": "lyra-vscode-ext"
 		},
 		{
+			"path": "lyra-zed-ext"
+		},
+		{
 			"path": "tree-sitter-lyra"
 		},
 		{
