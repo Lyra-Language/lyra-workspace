@@ -193,7 +193,15 @@ refresh_repo() {
 		warn "$msg — not fast-forwardable, left alone"
 	else
 		warn "$msg"
-		[ "$behind" != "0" ] && note "run with --pull to fast-forward"
+		# An `if`, not `[ … ] && note …`: as the function's last command that
+		# form returns 1 whenever behind is 0, and under `set -e` a non-zero
+		# return from the call aborts the whole script. A repo that was merely
+		# *ahead* of its upstream — an unpushed commit, the normal state here —
+		# silently ended the run, skipping every repo after it in the list and
+		# exiting 1 with nothing printed to say why.
+		if [ "$behind" != "0" ]; then
+			note "run with --pull to fast-forward"
+		fi
 	fi
 }
 
