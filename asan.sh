@@ -71,6 +71,32 @@ fi
 
 docker volume inspect "$VOLUME" >/dev/null 2>&1 || docker volume create "$VOLUME" >/dev/null
 
+# Invalidate the container's Go build cache when the generated parser changes.
+#
+# This is the workspace's documented build-cache hazard, and this script walked
+# straight into it: the CGO binding pulls the grammar in with
+# `#include "../../src/parser.c"`, and Go's build cache hashes the .go files and tracked
+# cgo sources but *not* files reached by #include. So a regenerated parser does not
+# invalidate the compiled-parser object sitting in the cache volume, and the suite runs
+# against the old grammar — silently, and only in the container, which reads as a
+# platform difference rather than a stale build. (It cost a confusing round of
+# "Linux fails where macOS passes" when `pub` became a labelled grammar field.)
+#
+# Keyed on size+mtime rather than a content hash: regeneration always changes both, and
+# hashing 110 MB on every run to catch a case that cannot occur is not worth the wait.
+# A false positive only costs one rebuild; a false negative is the bug above.
+parser_stamp() {
+  if stat -f '%z-%m' "$PARSER" 2>/dev/null; then return; fi
+  stat -c '%s-%Y' "$PARSER" 2>/dev/null || echo unknown
+}
+readonly STAMP_FILE=/cache/.parser-stamp
+readonly PARSER_STAMP="$(parser_stamp)"
+if [[ "$(docker run --rm -v "$VOLUME:/cache" "$IMAGE" cat "$STAMP_FILE" 2>/dev/null || true)" != "$PARSER_STAMP" ]]; then
+  printf 'asan.sh: grammar changed — clearing the container Go cache\n' >&2
+  docker run --rm -v "$VOLUME:/cache" "$IMAGE" \
+    bash -c "go clean -cache && printf '%s' '$PARSER_STAMP' > $STAMP_FILE" >/dev/null
+fi
+
 # Preflight: prove ASan actually links and runs before handing off to `go test`.
 #
 # This is the whole point of the script, and it is silently skippable — the suite gates

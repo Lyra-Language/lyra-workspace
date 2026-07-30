@@ -49,6 +49,8 @@ LEAKS=1 ./asan.sh         # also enable LeakSanitizer (expect known-accepted noi
 
 **Two things it is for, and one it is not.** It catches (a) genuine memory faults, and (b) **invalid IR that modern clang cannot even diagnose**: Debian's older clang still uses *typed pointers*, so it rejects a function-type mismatch that Apple clang 21's opaque pointers make indistinguishable — which is how a real miscompile was found where a `(u8, u8)` tuple argument was built at the i64 default width. It is **not** the fix for ASan missing memory faults; that was missing `sanitize_address` instrumentation, which affected macOS and Linux equally and is fixed in the harness (see `lyra/CLAUDE.md`'s backend-testing section). Both `lyrac`-level Linux gaps it surfaced — an anonymous tuple argument built at the wrong width, and a signed `i128` multiply that could not link — are fixed; see `lyra/todo.md`'s Known Bugs. The whole suite passes on Linux as of 07/30.
 
+It also **clears the container's Go build cache when the generated parser changes**, keyed on the parser's size+mtime. This is the workspace's own documented build-cache hazard, and the script walked into it: the cache lives in a named volume, Go does not hash `#include`d sources, and so a regenerated `parser.c` left the compiled-parser object stale — the suite ran against the *old* grammar, silently, and only in the container, which reads as a platform difference rather than a stale build.
+
 The script **preflights** that ASan actually links and runs, and fails hard if not. Debian's `clang` package does not pull in `libclang-rt-dev`, and without it every ASan test *skips* — a green run that verified nothing, which is exactly what the first build of this image did.
 
 ## Critical Cross-Project Dependency
