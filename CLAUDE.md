@@ -90,6 +90,10 @@ than here — this file duplicated that reference until 07/30 and the copy drift
 Integers: `i8`, `i16`, `i32`, `i64`, `i128`, `u8`, `u16`, `u32`, `u64`, `u128` (no platform-dependent `int`/`uint` — removed for determinism; untyped integer literals default to `i64`). `i128`/`u128` lower natively (LLVM `i128`, 16/16 ABI); checked arithmetic + `match`/comparisons/conversions extend for free by width, division/`%%` go through compiler-rt, and `print` uses a hand-written base-10 formatter (`lyra_i128_to_str`, no printf 128-bit specifier). MVP literal gap: a >64-bit literal isn't representable yet (`IntegerLiteralExpr.Value` is `int64`), so a 128-bit constant is reached via arithmetic or an `i128(x)` conversion of an i64/u64-range value; the value-range pass leaves them ⊤ (untracked, sound) like `u64`.
 Floats: `f16`, `f32`, `f64` (there is no bare `float` keyword; untyped float literals default to `f64`)
 Other: `bool`, `string`, `rune` (a Unicode code point, i32 — Go/Odin naming)
+Compiler-internal, no syntax: `never` — the bottom type, the result of `panic(msg)`. Assignable
+to every type (nothing is assignable to it), which is what lets a diverging expression sit in
+value position: `match m { Some(v) => v, None => panic("…") }`. `panic` is the one trap a
+program reaches deliberately; it is EffectNone, so `pure`/`det`/`noalloc` may all call it.
 Internal (literal inference only): `untyped_int`, `untyped_signed_int`, `untyped_float`
 
 ## VS Code Extension (`lyra-vscode-ext/`)
