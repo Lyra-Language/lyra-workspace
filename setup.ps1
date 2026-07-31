@@ -40,10 +40,6 @@ $OrgHttps = 'https://github.com/Lyra-Language'
 # into ../tree-sitter-lyra).
 $Repos = @('tree-sitter-lyra', 'lyra', 'lyra-vscode-ext', 'lyra-zed-ext', 'lyra-website')
 
-# Repos storing files in Git LFS. Cloning these without git-lfs installed
-# silently leaves pointer files behind instead of real content.
-$LfsRepos = @('tree-sitter-lyra')
-
 # --- output helpers -------------------------------------------------------
 
 function Write-Ok   { param($m) Write-Host '  ' -NoNewline; Write-Host '+' -ForegroundColor Green  -NoNewline; Write-Host " $m" }
@@ -77,16 +73,11 @@ if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
     exit 1
 }
 
-$HaveLfs = [bool](Get-Command git-lfs -ErrorAction SilentlyContinue) -or (Invoke-Git @('lfs', 'version')).Ok
 $Base = if ($Https) { $OrgHttps } else { $OrgSsh }
 
 Write-Host 'Lyra workspace' -ForegroundColor White -NoNewline
 Write-Host " - $Workspace"
 Write-Host "remote base: $Base"
-if (-not $HaveLfs) {
-    Write-Warn "git-lfs not installed - required by: $($LfsRepos -join ', ')"
-    Write-Note "winget install GitHub.GitLFS   then: git lfs install"
-}
 Write-Host ''
 
 # --- per-repo work --------------------------------------------------------
@@ -108,14 +99,11 @@ function Invoke-CloneRepo {
     Write-Host $Name -ForegroundColor White -NoNewline
     Write-Host ' (cloning)' -ForegroundColor DarkGray
 
-    # git-lfs is a hard prerequisite here, not a nicety: the repo's
-    # .gitattributes routes src/parser.c through the lfs filter, so git invokes
-    # git-lfs during checkout and the clone dies mid-checkout without it.
-    if (($LfsRepos -contains $Name) -and -not $HaveLfs) {
-        Add-Failure $Name 'skipped - git-lfs is required to clone this repo'
-        Write-Note "install git-lfs, run 'git lfs install', then re-run this script"
-        return
-    }
+    # git-lfs used to be a hard prerequisite here: tree-sitter-lyra's generated
+    # src/parser.c was 116 MB and routed through the lfs filter, so git invoked
+    # git-lfs mid-checkout and the clone died without it. The parser is now 12.8 MB
+    # of ordinary tracked text, so a plain clone is enough. Only a checkout of a
+    # *historical* commit still needs git-lfs.
 
     if ((Invoke-Git @('clone', '--quiet', $url, $Name)).Ok) {
         Write-Ok "cloned from $url"

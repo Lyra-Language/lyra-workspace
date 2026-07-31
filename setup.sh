@@ -21,10 +21,6 @@ ORG_HTTPS="https://github.com/Lyra-Language"
 # into ../tree-sitter-lyra).
 REPOS="tree-sitter-lyra lyra lyra-vscode-ext lyra-zed-ext lyra-website"
 
-# Repos storing files in Git LFS. Cloning these without git-lfs installed
-# silently leaves pointer files behind instead of real content.
-LFS_REPOS="tree-sitter-lyra"
-
 USE_HTTPS=0
 DO_PULL=0
 
@@ -92,11 +88,6 @@ command -v git >/dev/null 2>&1 || {
 	exit 1
 }
 
-HAVE_LFS=0
-if command -v git-lfs >/dev/null 2>&1 || git lfs version >/dev/null 2>&1; then
-	HAVE_LFS=1
-fi
-
 if [ "$USE_HTTPS" -eq 1 ]; then
 	BASE="$ORG_HTTPS"
 else
@@ -105,10 +96,6 @@ fi
 
 info "${C_BOLD}Lyra workspace${C_RESET} — $WORKSPACE"
 info "remote base: $BASE"
-if [ "$HAVE_LFS" -eq 0 ]; then
-	warn "git-lfs not installed — required by: $LFS_REPOS"
-	note "brew install git-lfs  /  apt install git-lfs   then: git lfs install"
-fi
 info ""
 
 # --- per-repo work --------------------------------------------------------
@@ -125,14 +112,12 @@ clone_repo() {
 	url="$BASE/$name.git"
 	info "${C_BOLD}$name${C_RESET} ${C_DIM}(cloning)${C_RESET}"
 
-	# git-lfs is a hard prerequisite here, not a nicety: the repo's
-	# .gitattributes routes src/parser.c through the lfs filter, so git invokes
-	# git-lfs during checkout and the clone dies mid-checkout without it.
-	if contains_word "$name" "$LFS_REPOS" && [ "$HAVE_LFS" -eq 0 ]; then
-		fail "$name" "skipped — git-lfs is required to clone this repo"
-		note "install git-lfs, run 'git lfs install', then re-run this script"
-		return
-	fi
+	# git-lfs used to be a hard prerequisite here: tree-sitter-lyra's generated
+	# src/parser.c was 116 MB and routed through the lfs filter, so git invoked
+	# git-lfs mid-checkout and the clone died without it. The parser is now 12.8 MB
+	# of ordinary tracked text (the grammar's lambda_expr rule was rebuilt to stop
+	# the state explosion that made it huge), so a plain clone is enough. Only a
+	# checkout of a *historical* commit still needs git-lfs.
 
 	if git clone --quiet "$url" "$name"; then
 		ok "cloned from $url"

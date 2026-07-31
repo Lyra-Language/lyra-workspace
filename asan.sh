@@ -37,14 +37,16 @@ docker info >/dev/null 2>&1 || die "the Docker daemon is not reachable — start
 [[ -d "$ROOT/lyra" ]] || die "no lyra/ next to this script — run ./setup.sh first"
 [[ -d "$ROOT/tree-sitter-lyra" ]] || die "no tree-sitter-lyra/ next to this script — run ./setup.sh first"
 
-# The generated parser is a git-lfs object. If LFS never ran, the file on disk is a
+# The generated parser is ordinary tracked text as of the state-explosion fix, but a
+# *historical* checkout (a bisect, an old worktree) still yields an LFS pointer. If
 # ~130-byte pointer stub rather than the real ~110 MB source, and CGO fails deep inside
 # the build with a confusing error about missing symbols. Check it here instead.
 readonly PARSER="$ROOT/tree-sitter-lyra/src/parser.c"
 [[ -f "$PARSER" ]] || die "missing $PARSER — run ./setup.sh"
 if head -c 45 "$PARSER" | grep -q 'git-lfs.github.com/spec'; then
-  die "$PARSER is an unfetched git-lfs pointer, not the generated parser.
-    Install git-lfs and run: git -C '$ROOT/tree-sitter-lyra' lfs pull"
+  die "$PARSER is an unfetched git-lfs pointer, not the generated parser — which means
+    this is a checkout from before the parser left LFS. Install git-lfs and run:
+    git -C '$ROOT/tree-sitter-lyra' lfs pull"
 fi
 
 rebuild=0

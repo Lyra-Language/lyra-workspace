@@ -48,13 +48,7 @@ After either, you should have all five sub-projects checked out beside each othe
 | Tool | Why | macOS | Linux (Debian/Ubuntu) | Windows |
 |---|---|---|---|---|
 | Git | Everything | preinstalled / `brew install git` | `apt install git` | [git-scm.com](https://git-scm.com) |
-| **Git LFS** | **`tree-sitter-lyra` will not clone without it** | `brew install git-lfs` | `apt install git-lfs` | `winget install GitHub.GitLFS` |
 
-After installing Git LFS, run this once per machine:
-
-```bash
-git lfs install
-```
 
 **Needed to build and test, not to clone:**
 
@@ -113,7 +107,7 @@ Then open `lyra.code-workspace` in VS Code to get all five projects in one windo
 
 ## Troubleshooting
 
-**"git-lfs is required to clone this repo"** — `tree-sitter-lyra` stores its generated `src/parser.c` (~115 MB) in Git LFS. Without `git-lfs` on your `PATH`, Git invokes it partway through checkout and the clone dies, leaving a broken repo. The scripts detect this and skip that repo rather than leave wreckage. Install Git LFS, run `git lfs install`, then re-run setup.
+**Git LFS is no longer required.** `tree-sitter-lyra`'s generated `src/parser.c` used to be ~115 MB and stored in Git LFS, which made `git-lfs` a hard prerequisite — without it the clone died partway through checkout. The grammar's `lambda_expr` rule was rebuilt to stop a parser state explosion (62,663 states → 6,475), taking the file to 12.8 MB of ordinary tracked text. A plain `git clone` is now enough. You only need `git-lfs` to check out a *historical* commit from before that change.
 
 **Clone fails with a permission or authentication error** — the scripts default to SSH (`git@github.com:…`). If you have no SSH key set up for GitHub, use HTTPS instead:
 
@@ -135,7 +129,7 @@ CC=gcc npm run test
 
 Add `export CC=gcc` to your shell profile to make it stick. (Symlinking `gcc` to the prefixed name, or installing the real cross toolchain, work too — the env var is just the cheapest.)
 
-**The parser compile gets killed partway through** — `src/parser.c` is ~115 MB, and `cc1` wants real memory to chew through it. On a small VM this shows up as an OOM kill rather than a compiler error. Give the VM more RAM or add swap.
+**The parser compile gets killed partway through** — `src/parser.c` is ~12.8 MB, and `cc1` wants real memory to chew through it. On a very small VM this can show up as an OOM kill rather than a compiler error. Give the VM more RAM or add swap. (This was far more likely when the file was ~115 MB, before the grammar's state explosion was fixed.)
 
 ## Working on Lyra
 
