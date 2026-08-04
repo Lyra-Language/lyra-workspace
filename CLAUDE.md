@@ -102,6 +102,27 @@ value position: `match m { Some(v) => v, None => panic("…") }`. `panic` is the
 program reaches deliberately; it is EffectNone, so `pure`/`det`/`noalloc` may all call it.
 Internal (literal inference only): `untyped_int`, `untyped_signed_int`, `untyped_float`
 
+## Calling on a Receiver
+
+Two related features, both 08/03, both opted into by naming a function's first parameter
+`self` — and easier to keep straight as one idea in two halves:
+
+- **UFCS** (call side): `m.unwrap_or(0)` resolves to the free function `unwrap_or(m, 0)`.
+  The call is rewritten to pass the receiver as argument 0 before anything downstream sees
+  it, so nothing after the typechecker knows UFCS exists. An `own` receiver is refused, so a
+  move always looks like a call; calling into another module method-style needs an import.
+- **Receiver-keyed overloading** (declaration side): a module may declare one name several
+  times when each declaration takes a `self` receiver and their receiver *type heads* differ
+  — `Maybe<t>` beside `Result<t,e>` is allowed, a second `Maybe<…>` is refused where it is
+  written, since ranking two matching candidates would need a specificity ordering the
+  language does not have. The prelude uses it for `unwrap_or`/`unwrap_or_else`.
+
+Without the second, `Maybe` and `Result` could each be *called* with `map` but only one of
+them could have a `map` *written* in a given module — which is why the standard library used
+to split `std.maybe` from `std.result`. Details and the reasoning are in
+`lyra/pkg/analyzer/typechecker/README.md`; a name still may not be exported by two modules
+at once (`lyra/todo.md`, Modules).
+
 ## VS Code Extension (`lyra-vscode-ext/`)
 
 `src/extension.ts` starts the LSP client, which spawns `lyra-lsp` via stdio. The server path defaults to `lyra-lsp` on `$PATH` and is overridable via the `lyra.languageServerPath` VS Code setting.
