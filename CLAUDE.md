@@ -123,6 +123,50 @@ to split `std.maybe` from `std.result`. Details and the reasoning are in
 `lyra/pkg/analyzer/typechecker/README.md`; a name still may not be exported by two modules
 at once (`lyra/todo.md`, Modules).
 
+## Console I/O
+
+Output is `print`/`println`, polymorphic over the printable scalars. **Input is
+`read_line() -> Maybe<string>`** (08/05): one line from stdin, terminator removed (a trailing
+`\r` with it), `None` at EOF.
+
+`Maybe`, not `string`, because EOF must be distinguishable from a blank line — both are `""`
+otherwise, so the natural read loop never terminates once stdin closes. Its companion
+`parse_i64` (`(self: string) -> Maybe<i64>`, so `line.parse_i64()`) is strict: `None` for a
+blank line, a lone sign, trailing garbage, surrounding whitespace, or a value outside the i64
+range. Out-of-range is a `None` rather than an overflow trap, which it would otherwise be —
+parsing is where a program meets input it did not choose.
+
+**The division of labour between them is the rule to follow when adding more.** `read_line`
+is a compiler builtin because it *has* to be — the line comes from libc and Lyra has no FFI.
+`parse_i64` is ordinary Lyra in `std/prelude.lyra` because it can be. Anything expressible in
+the language goes in the prelude, where it is readable, testable and replaceable; the builtin
+registry stays whatever is genuinely primitive.
+
+## Randomness
+
+`random_seed() -> u64` (one word of OS entropy) is the **only** builtin; the generator is
+ordinary Lyra in `std/prelude.lyra`:
+
+- `rng_seeded(seed)` / `rng_from_entropy()` build an `Rng`;
+- `rng.next_u64()`, `rng.below(bound)` (half-open), `rng.between(lo, hi)` (inclusive) draw
+  from one;
+- `random_below(bound)` / `random_between(lo, hi)` are ambient one-liners that seed a fresh
+  generator per call.
+
+`below` rejects the top partial bucket rather than taking a modulo, so a draw is unbiased.
+The algorithm is xorshift64*, chosen for legibility — **not** suitable for anything
+security-sensitive, and seeding it from the OS does not change that.
+
+**Keeping the seed as the primitive is what lets `det` code use randomness, and no rule
+enforces it — it falls out of effect inference.** A seeded generator only mutates its own
+receiver (`EffectMut`, which `det` permits), so a seeded draw is reproducible and `det`-legal;
+`rng_from_entropy`/`random_below` reach `random_seed`, so inference gives them `EffectRand`
+and `det` refuses them. Asking for a seed you were not given is the non-deterministic act, and
+that is the one place the bit is charged.
+
+`Random.global()` was an effect-table entry naming nothing (no signature, no lowering — it
+type-checked and crashed the backend); it is gone.
+
 ## VS Code Extension (`lyra-vscode-ext/`)
 
 `src/extension.ts` starts the LSP client, which spawns `lyra-lsp` via stdio. The server path defaults to `lyra-lsp` on `$PATH` and is overridable via the `lyra.languageServerPath` VS Code setting.
