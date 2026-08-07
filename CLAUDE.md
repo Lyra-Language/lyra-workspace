@@ -138,14 +138,14 @@ parsing is where a program meets input it did not choose.
 
 **The division of labour between them is the rule to follow when adding more.** `read_line`
 is a compiler builtin because it *has* to be — the line comes from libc and Lyra has no FFI.
-`parse_i64` is ordinary Lyra in `std/prelude.lyra` because it can be. Anything expressible in
+`parse_i64` is ordinary Lyra in `std/prelude/parse.lyra` because it can be. Anything expressible in
 the language goes in the prelude, where it is readable, testable and replaceable; the builtin
 registry stays whatever is genuinely primitive.
 
 ## Randomness
 
 `random_seed() -> u64` (one word of OS entropy) is the **only** builtin; the generator is
-ordinary Lyra in `std/prelude.lyra`:
+ordinary Lyra in `std/prelude/rand.lyra`:
 
 - `rng_seeded(seed)` / `rng_from_entropy()` build an `Rng`;
 - `rng.next_u64()`, `rng.below(bound)` (half-open), `rng.between(lo, hi)` (inclusive) draw
@@ -194,7 +194,7 @@ only for some inputs.
 `slice` **allocates** — it copies into a fresh ref-counted box rather than borrowing its
 parent's bytes, because a box's header sits at its start and a pointer into the middle
 cannot reach it — so `noalloc` refuses it, and refuses `trim` with it.
-`trim`/`trim_start`/`trim_end` are ordinary Lyra in `std/prelude.lyra`, trimming the five
+`trim`/`trim_start`/`trim_end` are ordinary Lyra in `std/prelude/strings.lyra`, trimming the five
 ASCII whitespace characters and not Unicode's full set (which needs a table that belongs in
 a real Unicode library). Not yet written, all now expressible:
 `starts_with`/`ends_with`/`contains`/`split`.
@@ -215,6 +215,27 @@ Until then it type-checked clean and crashed the backend — the hole that made
 no constructor inferred as a silent nil, so `Rng.field`, `let x = Rng` and even
 `Nonexistent.make(1)` were all accepted. Building the feature is open; the diagnostic is not
 a placeholder for it.
+
+## A Module Is a File or a Directory
+
+`std.prelude` is `std/prelude.lyra` **or** every `*.lyra` directly inside `std/prelude/`
+(08/07). Both forms are the same module — one path, one namespace, one scope — so a module
+that outgrows a file splits without any of its declarations changing meaning. The shipped
+prelude is seven files.
+
+**The equivalence is the whole point**, because the obvious alternative is wrong. Receiver-keyed
+overloading, `pub`, and prelude shadowing are all keyed on the *module*, so splitting a grown
+module into *several* modules silently changes what its names mean: `unwrap_or` for `Maybe`
+beside `unwrap_or` for `Result` would become a cross-module duplicate, which is exactly the
+split the standard library was rescued from on 08/04.
+
+Every file in a module directory must declare the module (a file's own text has to say which
+namespace its declarations join, in a namespace where a name may be a receiver overload of one
+three files away); a single-file module needs no header, since its path is its location. A
+subdirectory is the next path down, not more of the parent. A module offering both forms in one
+root is an error rather than a silent preference. Entering a compile at one file of a
+multi-file module brings its siblings — without that, `lyrac check std/prelude/strings.lyra`
+would analyze a fragment and report the rest of the prelude undefined.
 
 ## VS Code Extension (`lyra-vscode-ext/`)
 
