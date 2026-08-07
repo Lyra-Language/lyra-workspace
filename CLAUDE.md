@@ -102,6 +102,22 @@ value position: `match m { Some(v) => v, None => panic("…") }`. `panic` is the
 program reaches deliberately; it is EffectNone, so `pure`/`det`/`noalloc` may all call it.
 Internal (literal inference only): `untyped_int`, `untyped_signed_int`, `untyped_float`
 
+## Ranges
+
+Four end operators, two axes: `..<` `..<=` ascend, `..>` `..>=` descend; `..<` `..>` exclude
+the end bound, `..<=` `..>=` include it. An optional step follows a colon (`0..<10:2`) and is
+a **magnitude** — a negative step is an error, because the operator already says which way
+the range runs.
+
+**Direction is the operator's, never the bounds'.** `5..<1` is an ascending range that
+happens to be empty, not a descending one. That keeps direction a parse-time fact, so a
+range over variables cannot run the opposite way from the way it reads. The inclusive end
+was spelled `..=` until 08/04; it became `..<=` so both directions read identically.
+
+Descending is meaningful only where a range is *iterated*. As a match pattern or a `newtype`
+constraint a range is a **set**, which has no direction, and `..>`/`..>=` there are
+`lyra-E034`.
+
 ## Calling on a Receiver
 
 Two related features, both 08/03, both opted into by naming a function's first parameter
