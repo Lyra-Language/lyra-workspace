@@ -167,6 +167,31 @@ that is the one place the bit is charged.
 `Random.global()` was an effect-table entry naming nothing (no signature, no lowering — it
 type-checked and crashed the backend); it is gone.
 
+## The Clock
+
+`wall_clock_nanos() -> i64` (08/06) is `clock_gettime(CLOCK_REALTIME, …)` and nothing else —
+the same rule randomness follows, so seconds, elapsed durations and formatting are left to
+the prelude. Signed, because the useful operation on two instants is subtraction; the unit is
+in the name because a clock returning a bare number invites a guess that fails silently.
+
+It replaced `wallClock`, the last effect-table entry naming nothing — the `Random.global()`
+shape, still in place. **Implemented rather than deleted**, since deleting would have left
+`EffectTime` a bit nothing in the language could set. Ambient reads carry that bit, so
+`pure`/`det` refuse them; a timestamp threaded in as a parameter is ordinary data, which is
+the same split that lets `det` code use a seeded `Rng`.
+
+## Calling on a Type Name
+
+There isn't any. `Rng.seeded(42)` is **`lyra-E035`** (08/06): Lyra has no type-namespaced
+associated functions, which is why the prelude's constructors are bare (`rng_seeded`). A
+trait gets its own message, since `Trait::method(…)` *is* a spelling the language has.
+
+Until then it type-checked clean and crashed the backend — the hole that made
+`Random.global()` look implemented. It was wider than a member call: a PascalCase name owning
+no constructor inferred as a silent nil, so `Rng.field`, `let x = Rng` and even
+`Nonexistent.make(1)` were all accepted. Building the feature is open; the diagnostic is not
+a placeholder for it.
+
 ## VS Code Extension (`lyra-vscode-ext/`)
 
 `src/extension.ts` starts the LSP client, which spawns `lyra-lsp` via stdio. The server path defaults to `lyra-lsp` on `$PATH` and is overridable via the `lyra.languageServerPath` VS Code setting.
