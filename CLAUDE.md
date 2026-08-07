@@ -180,6 +180,28 @@ shape, still in place. **Implemented rather than deleted**, since deleting would
 `pure`/`det` refuse them; a timestamp threaded in as a parameter is ordinary data, which is
 the same split that lets `det` code use a seeded `Rng`.
 
+## Strings
+
+UTF-8, an immutable `{ptr, byte_len}` fat pointer. Everything the *language* exposes is
+**rune-indexed**, and the field is bytes: representation and language deliberately disagree.
+
+`s[i]` is the i-th code point (O(i)), `for c in s` walks code points, and as of 08/06
+`s.len()` is the rune count (O(n)) and `s.slice(start, end)` a half-open rune range. `len`
+counts runes because the *index* already did: with a byte length,
+`for i in 0..<s.len() { s[i] }` would be wrong on the first non-ASCII input, silently and
+only for some inputs.
+
+`slice` **allocates** — it copies into a fresh ref-counted box rather than borrowing its
+parent's bytes, because a box's header sits at its start and a pointer into the middle
+cannot reach it — so `noalloc` refuses it, and refuses `trim` with it.
+`trim`/`trim_start`/`trim_end` are ordinary Lyra in `std/prelude.lyra`, trimming the five
+ASCII whitespace characters and not Unicode's full set (which needs a table that belongs in
+a real Unicode library). Not yet written, all now expressible:
+`starts_with`/`ends_with`/`contains`/`split`.
+
+Known gap: **a literal is not a postfix head**, so `"abc".len()` and `1.wrapping_add(2)` are
+syntax errors while `("abc").len()` and a bound `s.len()` are fine.
+
 ## Calling on a Type Name
 
 There isn't any. `Rng.seeded(42)` is **`lyra-E035`** (08/06): Lyra has no type-namespaced
