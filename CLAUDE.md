@@ -199,8 +199,10 @@ ASCII whitespace characters and not Unicode's full set (which needs a table that
 a real Unicode library). Not yet written, all now expressible:
 `starts_with`/`ends_with`/`contains`/`split`.
 
-Known gap: **a literal is not a postfix head**, so `"abc".len()` and `1.wrapping_add(2)` are
-syntax errors while `("abc").len()` and a bound `s.len()` are fine.
+A literal *is* a postfix head as of 08/06, so `"abc".len()`, `[1, 2, 3].len()` and
+`1.wrapping_add(2)` all parse — which matters because UFCS made method syntax the normal way
+to call, and every prelude combinator had been unreachable from the literal a reader would
+naturally try it on.
 
 ## Calling on a Type Name
 
