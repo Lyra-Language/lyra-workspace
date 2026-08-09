@@ -87,7 +87,7 @@ than here — this file duplicated that reference until 07/30 and the copy drift
 
 ## Primitive Types
 
-Integers: `i8`, `i16`, `i32`, `i64`, `i128`, `u8`, `u16`, `u32`, `u64`, `u128` (no platform-dependent `int`/`uint` — removed for determinism; untyped integer literals default to `i64`). `i128`/`u128` lower natively (LLVM `i128`, 16/16 ABI); checked arithmetic + `match`/comparisons/conversions extend for free by width, division/`%%` go through compiler-rt, and `print` uses a hand-written base-10 formatter (`lyra_i128_to_str`, no printf 128-bit specifier). MVP literal gap: a >64-bit literal isn't representable yet (`IntegerLiteralExpr.Value` is `int64`), so a 128-bit constant is reached via arithmetic or an `i128(x)` conversion of an i64/u64-range value; the value-range pass leaves them ⊤ (untracked, sound) like `u64`.
+Integers: `i8`, `i16`, `i32`, `i64`, `i128`, `u8`, `u16`, `u32`, `u64`, `u128` (no platform-dependent `int`/`uint` — removed for determinism; untyped integer literals default to `i64`). `i128`/`u128` lower natively (LLVM `i128`, 16/16 ABI); checked arithmetic + `match`/comparisons/conversions extend for free by width, division/`%%` go through compiler-rt, and `print` uses a hand-written base-10 formatter (`lyra_i128_to_str`, no printf 128-bit specifier). A 128-bit literal is writable as of 08/08 (`let mx: i128 = 170141183460469231731687303715884105727`): the magnitude lives in a `big.Int` on the literal node, nil for anything that fits 64 bits. It stays *untyped* where both `i128` and `u128` could hold it, so context picks. Compile-time *folding* is still int64-bound — a wide literal declines to fold rather than folding wrongly — and the value-range pass leaves 128-bit values ⊤ (untracked, sound) like `u64`.
 Bitwise/shift on integers (08/02): `&`, `|`, `~` (xor), `<<`, `>>`, prefix `~` (complement),
 plus the five compound assignments. **Xor is `~`, not `^`** — `^` is taken by raw-pointer
 types (`^T`) and postfix deref (`ptr^`). Precedence is not C's: bitwise binds *tighter than
@@ -101,6 +101,46 @@ to every type (nothing is assignable to it), which is what lets a diverging expr
 value position: `match m { Some(v) => v, None => panic("…") }`. `panic` is the one trap a
 program reaches deliberately; it is EffectNone, so `pure`/`det`/`noalloc` may all call it.
 Internal (literal inference only): `untyped_int`, `untyped_signed_int`, `untyped_float`
+
+## Overflow Arithmetic
+
+Integer `+ - * /` **trap** on overflow. The three explicit alternatives are builtin
+methods on any concrete integer width, and having all three is the point of trapping by
+default — each says what the author meant:
+
+- `wrapping_add`/`_sub`/`_mul` — modular two's-complement arithmetic;
+- `saturating_add`/`_sub`/`_mul` — clamp to the type's range;
+- `checked_add`/`_sub`/`_mul`/`_div` (08/08) — `Maybe<T>`, `None` where it would have
+  overflowed.
+
+`checked_div` is in that set although division cannot overflow in the intrinsic sense:
+its two failures are a zero divisor and `INT_MIN / -1`, which are exactly the two cases
+`/` traps on. There is no `checked_rem` yet — Lyra has two remainder operators (`%` and
+`%%`), so the name would have to say which.
+
+All of them are pure and allocate nothing (a `Maybe` of a scalar is an inline union), so
+they are usable from `pure noalloc` code — which is the code that most wants them.
+
+## Arrays
+
+`[1, 2, 3]` is a fixed-size `[3]T`; the same literal under a `[]T` annotation builds a
+heap-allocated dynamic array instead, so the two are told apart by what the literal is
+*used as* rather than by how it is written (`noalloc` refuses the second, not the first).
+
+An element may be any type but `void`, including an **anonymous tuple** —
+`[](i64, string)` — a raw pointer and an anonymous struct (08/08; the first was the gap,
+the other two were missing beside it). It may also carry one allocation or `weak`
+modifier: `[]shared Node`.
+
+`[v; n]` repeats a value (08/08), in both flavours. Two rules matter:
+
+- **The value is evaluated once**, so `[next(); 3]` is one call. Each of the n slots is
+  then an owner, so a managed element takes n-1 extra retains — the array literal
+  `[s, s, s]` needs none of that, because it lowers three separate uses.
+- **The count is a compile-time constant by construction**: the grammar admits a number
+  literal or a `const_identifier` there and nothing else, so `[0; n]` for a runtime `n`
+  is a syntax error. The size is part of the type, and a type cannot depend on a value
+  the compiler has not got. `const M = N * 2` works — const chains fold.
 
 ## Ranges
 
@@ -117,6 +157,69 @@ was spelled `..=` until 08/04; it became `..<=` so both directions read identica
 Descending is meaningful only where a range is *iterated*. As a match pattern or a `newtype`
 constraint a range is a **set**, which has no direction, and `..>`/`..>=` there are
 `lyra-E034`.
+
+## Newtypes
+
+`newtype` gives **nominal identity to a structural type**: `newtype Meters = f64` is not
+interchangeable with other f64s. As of 08/07 the base must actually be structural —
+`lyra-E041` refuses a `struct`, a `data` type, a named tuple, and an *anonymous* tuple.
+
+The first three already have identity, so wrapping one buys a second name and nothing else;
+the implementation had agreed all along, since a struct base could not be constructed by any
+spelling and a data base crashed the backend. The anonymous tuple is refused for a sharper
+reason: `tuple Rgb(u8, u8, u8)` already names a product, and the two differ only in whether
+the name is a **constructor** (`let c: Rgb = (1, 2, 3)` is rejected for the named tuple,
+`Rgb(1, 2, 3)` for the newtype) — so the message shows the `tuple` line to write. Scalars,
+`string`, arrays, raw pointers and function types keep working: nothing else names them,
+and `struct Matrix { cells: [16]f64 }` is a wrapper with a field, not an alias.
+
+A newtype is **transparent to its base's methods** — `newtype Name = string` supports
+`len`/`slice`/`trim`, builtins and prelude `self:` functions alike — because a wrapped
+string you can do nothing with is not a trade anyone would take. The fallback is tried
+*after* every other rung, so a method written for the newtype still wins.
+
+## Operator Overloading
+
+Arithmetic and bitwise operators are overloadable as of 08/07, comparisons are not, and
+the split is the point. `+ - * / % << >> & | ~`, prefix `-` and `~`, and the compound
+assignments dispatch to a trait method named for the operator:
+
+```
+trait Add { (_+_): (Self, Self) -> Self }
+impl Add for Vec2 { (_+_) = (self, o) => Vec2 { x: self.x + o.x, y: self.y + o.y } }
+```
+
+**The trait is the author's — the compiler knows no name here.** That is the opposite of
+`Eq`/`Ord`, which *are* the comparison operators: `<` and `<=>` must agree, so one trait
+owns them and `(_==_)` as a method name is `lyra-E039`. Those two are marked
+`@builtin(Ord)`/`@builtin(Eq)` in the prelude (08/08), so the compiler finds them by
+identity rather than by spelling and a program's own `trait Ord` stays an ordinary trait.
+Arithmetic carries no such invariant, so the dispatch key is the method name. Two traits
+providing one operator for one type is an ambiguity, reported at the operator.
+
+**A primitive is never routed through an impl**: `1 + 1` is a machine add whatever a
+program declares. An operator is a call, so `pure`/`det`/`noalloc` charge it as one.
+
+Still inert, each with its own reason in the warning: `&&`/`||` (a call cannot
+short-circuit), `!` (boolean negation, no user truthiness), `**` (a spelling with no
+operator — its mirror `%%` is an operator with no spelling), and the suffix `_++`/`_--`.
+An operand whose type is a *type parameter* resolves through a `where` bound (08/08):
+`let sum<t> where t: Add = (a: t, b: t) -> t => a + b`, the same abstract dispatch a bound
+`.method()` call takes.
+
+## Parentheses and Constructor Calls in Operator Position
+
+Two forms that did not parse until 08/07, and that operator overloading made ordinary:
+`Cents(150) + Cents(275)` (a constructor call as a math operand) and `(a + b).x` (a
+parenthesized binary expression as a postfix head — `(1 + 2).wrapping_add(3)` failed the
+same way, so it predated overloading).
+
+Neither was about operators; both were about how many ways a node could be derived. A
+constructor call is a `tuple_literal`, which arithmetic never reached; a parenthesized
+*binary* expression is a `group`, which only arithmetic reached. Both were fixed by giving
+each node exactly **one** path, which made the parser *smaller* (7730 → 7711 states) —
+adding a second derivation instead is an unresolved reduce-reduce at every operand
+position, which is the same partition rule that governs `_literal` vs `_primary_expr`.
 
 ## Calling on a Receiver
 
@@ -138,6 +241,30 @@ them could have a `map` *written* in a given module — which is why the standar
 to split `std.maybe` from `std.result`. Details and the reasoning are in
 `lyra/pkg/analyzer/typechecker/README.md`; a name still may not be exported by two modules
 at once (`lyra/todo.md`, Modules).
+
+## Show
+
+`print` and `"${…}"` pick a formatter per *concrete* type, so a value whose type is a
+**type parameter** could not be rendered at all. A `where t: Show` bound fixes that
+(08/08):
+
+```
+let describe<t> where t: Show = (v: t) -> string => "value ${v}"
+```
+
+The trait and an impl for every printable scalar are **ordinary Lyra** in
+`std/prelude/show.lyra` — `"${self}"` on a concrete primitive is the formatter `print`
+already picks, so nothing here is a builtin. The compiler's half is a desugar: the operand
+is rewritten to `v.show()`, which is the bound dispatch that already existed.
+
+**The trait is recognized by its method, not its name** — any in-scope bound declaring
+`show` will do, so a program may define its own. `Show` is what the *diagnostic* suggests,
+because it is the one the prelude ships.
+
+A **concrete** type with a `show` impl prints the same way (`println(pt)`, `"${pt}"`). Two
+rules keep that safe: a printable primitive always takes the built-in formatter, and the
+rewrite never targets the method it is inside — `impl Show for Pt { show = (self) =>
+"${self}" }` is refused rather than compiled into infinite recursion.
 
 ## Console I/O
 
@@ -252,6 +379,23 @@ subdirectory is the next path down, not more of the parent. A module offering bo
 root is an error rather than a silent preference. Entering a compile at one file of a
 multi-file module brings its siblings — without that, `lyrac check std/prelude/strings.lyra`
 would analyze a fragment and report the rest of the prelude undefined.
+
+## Shadowing an Imported Name
+
+A module may declare its own version of a name a module it imports exports. The local
+declaration **wins every bare reference in that module** and warns (`lyra-W016`); the
+shadowed one stays reachable through the namespace the import already binds (`seq.map`),
+and no other module is affected.
+
+This was a hard error until 08/08, and the *comparison* is what made it wrong rather than
+merely strict: a declaration over a **prelude** name — one you never asked for — had always
+warned and won, so the explicit act was punished and the implicit one forgiven. It is one
+rule now (`shadowsAmbient`), keying the shadowing declaration `<module>::<name>` and leaving
+the bare key to the source, exactly as the prelude half already did.
+
+What is still an error is a **second claim on the program-wide name**: two modules exporting
+one name, including a module re-exporting one it imports. Neither has a local declaration
+obviously meant to win, so there is nothing for a shadowing rule to prefer.
 
 ## VS Code Extension (`lyra-vscode-ext/`)
 
