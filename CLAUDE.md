@@ -132,6 +132,16 @@ An element may be any type but `void`, including an **anonymous tuple** —
 the other two were missing beside it). It may also carry one allocation or `weak`
 modifier: `[]shared Node`.
 
+`xs.push(v)` grows a dynamic array (08/09), amortized doubling. It needed a
+representation change: the elements used to sit *inline* in the ref-counted box, and a
+`[]T` value **is** that box pointer — so growth would move the box and dangle every
+alias, which is a use-after-free rather than a semantics choice, since aliasing is
+observable (`let b = a; a[0] = 9` reads through `b`). They now live behind a pointer
+(`{rc, weak, len, cap, T*}`), so the box never moves and every alias sees the push. The
+cost is one extra load per element access, language-wide — what every growable reference
+container pays. `push` mutates in place and returns void, needs a mutable receiver (the
+same rule and diagnostic as `xs[i] = v`), and `noalloc` refuses it.
+
 `[v; n]` repeats a value (08/08), in both flavours. Two rules matter:
 
 - **The value is evaluated once**, so `[next(); 3]` is one call. Each of the n slots is
