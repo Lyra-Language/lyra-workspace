@@ -334,6 +334,15 @@ counts runes because the *index* already did: with a byte length,
 `for i in 0..<s.len() { s[i] }` would be wrong on the first non-ASCII input, silently and
 only for some inputs.
 
+**A negative index counts from the end** (08/08), as it does for an array: `s[-1]` is the
+last rune, and `slice` takes negative bounds too (`s.slice(1, -1)` drops the last rune). This
+is not sugar — it removes an O(n) tax with no workaround. Finding the k-th rune from the end
+is a *byte* walk that skips continuation bytes until it hits a lead byte, which UTF-8's
+self-synchronization makes well-defined and which decodes nothing; the spelling it replaces,
+`s[s.len() - 1]`, is two full decode walks. Measured at 34272 µs against 18 µs. Out of range
+traps in either direction, and the end position `s[n]` is still not an index — though
+`slice(n, n)` is the empty string, since an exclusive end may name it.
+
 `slice` **allocates** — it copies into a fresh ref-counted box rather than borrowing its
 parent's bytes, because a box's header sits at its start and a pointer into the middle
 cannot reach it — so `noalloc` refuses it, and refuses `trim` with it.
@@ -353,8 +362,16 @@ prefix test was O(m²) and a suffix test O(n·m), and both paid an O(n) `len()` 
 comparing anything — `s.starts_with("--")` on a 2000-rune string decoded all 2000 runes to
 answer a question about two bytes, the length calls alone measuring 99.7% of the cost.
 Building on `slice` instead fixes the quadratic term but allocates and is still O(n).
-Measured: 19.9 ms → 19 µs. `contains`/`split` are the two still unwritten, and both are a
-loop over the same builtin — `split` also needs a `[]string` return.
+Measured: 19.9 ms → 19 µs.
+
+`index`/`contains` landed the same day. `index(needle, offset = 0) -> Maybe<i64>` is a naive
+scan over `compare_bytes_at`, with both `offset` and the result in **rune** indices so the
+answer feeds straight into `slice` — the scan is byte-level, reconciled by carrying a byte
+cursor alongside the rune counter. Naive rather than Rabin–Karp on purpose: RK trades a libc
+memcmp for byte-at-a-time arithmetic in Lyra and buys only an *expected* bound, its worst case
+being O(n·m) too; a real guarantee wants a `memmem` builtin. `split` is the one still
+unwritten, and what it needs is the *output* — a `[]string` return, i.e. an array-building
+story beyond a comprehension.
 
 A literal *is* a postfix head as of 08/06, so `"abc".len()`, `[1, 2, 3].len()` and
 `1.wrapping_add(2)` all parse — which matters because UFCS made method syntax the normal way
