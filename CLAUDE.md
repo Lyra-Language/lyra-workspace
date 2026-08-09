@@ -373,6 +373,13 @@ being O(n·m) too; a real guarantee wants a `memmem` builtin. `split` is the one
 unwritten, and what it needs is the *output* — a `[]string` return, i.e. an array-building
 story beyond a comprehension.
 
+`s.byte_offset(i) -> Maybe<i64>` (08/08) completes the byte-level set: the rune→byte
+conversion, which nothing else in the language can perform. It is what makes "does `sep`
+occur at rune i" allocation-free —
+`s.compare_bytes_at(s.byte_offset(i).unwrap_or(-1), sep) == 0`, composing without a `match`
+because `compare_bytes_at` is total. It maps *positions*, so the end position answers
+`Some(byte_len)` rather than `None`, matching `slice`'s bounds rather than `s[i]`.
+
 A literal *is* a postfix head as of 08/06, so `"abc".len()`, `[1, 2, 3].len()` and
 `1.wrapping_add(2)` all parse — which matters because UFCS made method syntax the normal way
 to call, and every prelude combinator had been unreachable from the literal a reader would
