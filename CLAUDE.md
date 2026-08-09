@@ -339,8 +339,22 @@ parent's bytes, because a box's header sits at its start and a pointer into the 
 cannot reach it — so `noalloc` refuses it, and refuses `trim` with it.
 `trim`/`trim_start`/`trim_end` are ordinary Lyra in `std/prelude/strings.lyra`, trimming the five
 ASCII whitespace characters and not Unicode's full set (which needs a table that belongs in
-a real Unicode library). Not yet written, all now expressible:
-`starts_with`/`ends_with`/`contains`/`split`.
+a real Unicode library).
+
+`starts_with`/`ends_with` landed 08/08, and they are **byte-level** — one line each over a
+new pair of builtins, `s.byte_len()` (O(1), the fat pointer's field) and
+`s.compare_bytes_at(offset, other)` (memcmp at a byte offset, comparing exactly `other`'s
+length, so `== 0` is a prefix test). That is not an approximation: UTF-8 is prefix-free and
+self-synchronizing, so a byte-prefix is exactly a rune-prefix and a byte-suffix exactly a
+rune-suffix — the property `impl Ord for string` already leans on. Both are `pure noalloc`.
+
+**The rune-indexed version was the obvious one and was quadratic.** `s[i]` is O(i), so a
+prefix test was O(m²) and a suffix test O(n·m), and both paid an O(n) `len()` before
+comparing anything — `s.starts_with("--")` on a 2000-rune string decoded all 2000 runes to
+answer a question about two bytes, the length calls alone measuring 99.7% of the cost.
+Building on `slice` instead fixes the quadratic term but allocates and is still O(n).
+Measured: 19.9 ms → 19 µs. `contains`/`split` are the two still unwritten, and both are a
+loop over the same builtin — `split` also needs a `[]string` return.
 
 A literal *is* a postfix head as of 08/06, so `"abc".len()`, `[1, 2, 3].len()` and
 `1.wrapping_add(2)` all parse — which matters because UFCS made method syntax the normal way
