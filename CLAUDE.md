@@ -379,9 +379,16 @@ scan over `compare_bytes_at`, with both `offset` and the result in **rune** indi
 answer feeds straight into `slice` — the scan is byte-level, reconciled by carrying a byte
 cursor alongside the rune counter. Naive rather than Rabin–Karp on purpose: RK trades a libc
 memcmp for byte-at-a-time arithmetic in Lyra and buys only an *expected* bound, its worst case
-being O(n·m) too; a real guarantee wants a `memmem` builtin. `split` is the one still
-unwritten, and what it needs is the *output* — a `[]string` return, i.e. an array-building
-story beyond a comprehension.
+being O(n·m) too; a real guarantee wants a `memmem` builtin.
+
+`split` landed 08/09, once `push` gave it an output. `index`/`contains`/`split` are all
+**generic over the needle** — `pub trait Needle`, whose `found_at` reports a match as a
+`(Index, Length)` span (`pub type` aliases of `i64`), implemented for `rune` and `string`
+and open to user types. The span, not a fixed step, is what a variable-length needle will
+need, and `"a::b::c".split("::")` is the case a fixed step gets wrong. `split` on an
+**empty separator traps**, naming the fix — `to_runes() -> []rune` is the explicit
+spelling of "split into characters" — on `slice`'s inverted-range reasoning: a caller bug,
+not a None-shaped answer, and a rune separator cannot even be empty.
 
 `s.byte_offset(i) -> Maybe<i64>` (08/08) completes the byte-level set: the rune→byte
 conversion, which nothing else in the language can perform. It is what makes "does `sep`
