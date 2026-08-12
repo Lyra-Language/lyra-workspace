@@ -87,7 +87,7 @@ than here — this file duplicated that reference until 07/30 and the copy drift
 
 ## Primitive Types
 
-Integers: `i8`, `i16`, `i32`, `i64`, `i128`, `u8`, `u16`, `u32`, `u64`, `u128` (no platform-dependent `int`/`uint` — removed for determinism; untyped integer literals default to `i64`). `i128`/`u128` lower natively (LLVM `i128`, 16/16 ABI); checked arithmetic + `match`/comparisons/conversions extend for free by width, division/`%%` go through compiler-rt, and `print` uses a hand-written base-10 formatter (`lyra_i128_to_str`, no printf 128-bit specifier). A 128-bit literal is writable as of 08/08 (`let mx: i128 = 170141183460469231731687303715884105727`): the magnitude lives in a `big.Int` on the literal node, nil for anything that fits 64 bits. It stays *untyped* where both `i128` and `u128` could hold it, so context picks. Compile-time *folding* is still int64-bound — a wide literal declines to fold rather than folding wrongly — and the value-range pass leaves 128-bit values ⊤ (untracked, sound) like `u64`.
+Integers: `i8`, `i16`, `i32`, `i64`, `i128`, `u8`, `u16`, `u32`, `u64`, `u128` (no platform-dependent `int`/`uint` — removed for determinism; untyped integer literals default to `i64`). `i128`/`u128` lower natively (LLVM `i128`, 16/16 ABI); checked arithmetic + `match`/comparisons/conversions extend for free by width, division/`%%` go through compiler-rt, and `print` uses a hand-written base-10 formatter (`lyra_i128_to_str`, no printf 128-bit specifier). A 128-bit literal is writable as of 08/08 (`let mx: i128 = 170141183460469231731687303715884105727`): the magnitude lives in a `big.Int` on the literal node, nil for anything that fits 64 bits. It stays *untyped* where both `i128` and `u128` could hold it, so context picks. Compile-time folding is arbitrary-precision as of 08/08 (`ast.FoldBigExpr` folds in `big.Int`; `FoldIntExpr` narrows at the end, so a consumer needing an int64 gets ok=false rather than a wrapped value), and the value-range pass leaves 128-bit values ⊤ (untracked, sound) like `u64`.
 Bitwise/shift on integers (08/02): `&`, `|`, `~` (xor), `<<`, `>>`, prefix `~` (complement),
 plus the five compound assignments. **Xor is `~`, not `^`** — `^` is taken by raw-pointer
 types (`^T`) and postfix deref (`ptr^`). Precedence is not C's: bitwise binds *tighter than
@@ -157,7 +157,14 @@ same rule and diagnostic as `xs[i] = v`), and `noalloc` refuses it.
 Four end operators, two axes: `..<` `..<=` ascend, `..>` `..>=` descend; `..<` `..>` exclude
 the end bound, `..<=` `..>=` include it. An optional step follows a colon (`0..<10:2`) and is
 a **magnitude** — a negative step is an error, because the operator already says which way
-the range runs.
+the range runs. A step of zero or less that is only knowable at **run time** traps
+(`lyra: range step must be positive`) rather than spinning — the shift-amount ladder:
+provable → compile error, otherwise → trap. A comprehension over the same degenerate step
+yields an empty array instead, since its count is computed up front.
+
+A `for-in` range **terminates at the type's edge** (08/12): the advance is guarded, so
+`0..<=hi` with `hi` at the counter type's max visits the max and exits instead of wrapping
+past it and looping forever, and a large step cannot leap an exclusive end back into range.
 
 **Direction is the operator's, never the bounds'.** `5..<1` is an ascending range that
 happens to be empty, not a descending one. That keeps direction a parse-time fact, so a
