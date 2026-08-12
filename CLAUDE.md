@@ -195,6 +195,20 @@ A newtype is **transparent to its base's methods** — `newtype Name = string` s
 string you can do nothing with is not a trade anyone would take. The fallback is tried
 *after* every other rung, so a method written for the newtype still wins.
 
+**Except the overflow-arithmetic family** (`lyra-E043`, 08/12): `wrapping_*`/
+`saturating_*`/`checked_*` stop at the wrapper, because they are the *operators'* escape
+hatches and arithmetic on a newtype is opt-in — the fallback used to hand out through
+methods the arithmetic the operator rule withholds, and accepted a mixed operand
+(`cents.wrapping_add(plain_i64)`) doing it, since the registry's signatures are
+base-typed. The two paths through are explicit: an operator impl (which **dispatches on a
+scalar newtype** as of the same day — the guard used to newtype-strip its receiver, so
+`impl Add for Cents` was silently inert), or reading the value into its base
+(`let raw: i64 = c` — one step; base ↔ newtype assignability is deliberate in both single
+steps, with only newtype → *other* newtype refused). Float rounding (`floor`/`ceil`/
+`round`) stays transparent — a conversion's alternative, not an operator's. `println(c)`
+on a newtype still refuses; `impl Show for Cents` is the working answer and arguably the
+right one, since print is where transparency would erase the name the newtype carries.
+
 ## Operator Overloading
 
 Arithmetic and bitwise operators are overloadable as of 08/07, comparisons are not, and
@@ -215,7 +229,9 @@ Arithmetic carries no such invariant, so the dispatch key is the method name. Tw
 providing one operator for one type is an ambiguity, reported at the operator.
 
 **A primitive is never routed through an impl**: `1 + 1` is a machine add whatever a
-program declares. An operator is a call, so `pure`/`det`/`noalloc` charge it as one.
+program declares — and "primitive" means the receiver unstripped (08/12), so a newtype
+over a scalar *is* routed through its impl (`impl Add for Cents` dispatches, `impl Add
+for i64` is inert). An operator is a call, so `pure`/`det`/`noalloc` charge it as one.
 
 Still inert, each with its own reason in the warning: `&&`/`||` (a call cannot
 short-circuit), `!` (boolean negation, no user truthiness), `**` (a spelling with no
