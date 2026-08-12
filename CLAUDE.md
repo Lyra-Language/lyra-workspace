@@ -190,6 +190,15 @@ the name is a **constructor** (`let c: Rgb = (1, 2, 3)` is rejected for the name
 `string`, arrays, raw pointers and function types keep working: nothing else names them,
 and `struct Matrix { cells: [16]f64 }` is a wrapper with a field, not an alias.
 
+**A newtype has no constructor call at all** (`lyra-E044`, 08/12): `Cents(150)` and the
+juxtaposed `Cents 150` are refused — a value is made by *annotation*, since a value
+satisfying the base is assignable to the newtype. (It had reported "not a tuple type",
+naming the parse rather than the language.) Whether it *should* have one is open, and is
+really the question of whether construction should be **explicit**: implicit base →
+newtype conversion is unenforced at every boundary today, so a plain `i64` passed to a
+`(c: Cents)` parameter compiles silently, and the constructor is only worth adding as the
+half of a change that lets that be refused.
+
 A newtype is **transparent to its base's methods** — `newtype Name = string` supports
 `len`/`slice`/`trim`, builtins and prelude `self:` functions alike — because a wrapped
 string you can do nothing with is not a trade anyone would take. The fallback is tried
