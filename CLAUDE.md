@@ -238,11 +238,17 @@ compare-and-branch — what overflow-checked arithmetic already pays.
 `step(...)` is a real constraint as of the same day, having been collected and read
 by nothing: the values covered are `start, start+step, …` measured from the range's
 start, so `range(5..<=95), step(10)` accepts 15 and refuses 10 (`lyra-E053`, and the
-matching trap). **`pattern(...)` is the exception**: matching one at run time needs a
-regex engine the runtime does not have (`lyra-E052`), so a value that is not a string
-literal is **refused** (`lyra-E054`) rather than admitted unchecked — the guarantee
-stays whole, at the cost of not building one of these from runtime data until an
-engine exists.
+matching trap).
+
+**`pattern(...)` is checked at run time too**, by a DFA compiled from the pattern at
+*compile* time — the runtime still has no regex engine and needs none, because a
+constraint's pattern is part of a type and so is always known while compiling. The
+flattened tables ship as constants and one shared driver walks them (O(n), no
+backtracking, no allocation); a literal is still matched at compile time and emits
+nothing at all. What remains refused (`lyra-E054`) is a pattern that cannot become a
+table — a lookbehind, or a DFA past `regex.MaxTableStates` — which is a property of
+the pattern rather than of the value. A regex as a first-class *value* is still
+`lyra-E052`.
 
 **A regex literal is only a constraint's argument.** `where pattern(r"…")` works — the
 constraint stores the pattern's source text and compiles it at type-check time — but a
