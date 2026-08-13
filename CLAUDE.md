@@ -121,6 +121,15 @@ its two failures are a zero divisor and `INT_MIN / -1`, which are exactly the tw
 All of them are pure and allocate nothing (a `Maybe` of a scalar is an inline union), so
 they are usable from `pure noalloc` code — which is the code that most wants them.
 
+**A literal that cannot hold its value is a compile error in every position** (08/13,
+`lyra-E048` for patterns): a match arm's `300` on a u8 scrutinee, a range-pattern bound,
+a `Some(300)` payload on `Maybe<u8>`, a value outside a newtype's range constraint, and a
+return-position `() -> u8 => 300` are all refused rather than truncated — patterns lower
+at the scrutinee's width, so the unchecked arm was not dead, it *matched 44*. Everything
+in these positions is a compile-time constant by grammar, so the trap ladder's provable
+rung is the whole ladder. One grace: an exclusive range end names a position, so `0..<256`
+on a u8 (the full range) is legal and `0..<257` is not.
+
 ## Arrays
 
 `[1, 2, 3]` is a fixed-size `[3]T`; the same literal under a `[]T` annotation builds a
