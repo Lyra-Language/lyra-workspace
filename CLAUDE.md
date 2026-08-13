@@ -385,14 +385,22 @@ the same split that lets `det` code use a seeded `Rng`.
 
 ## Strings
 
-UTF-8, an immutable `{ptr, byte_len}` fat pointer. Everything the *language* exposes is
-**rune-indexed**, and the field is bytes: representation and language deliberately disagree.
+UTF-8, an immutable `{ptr, byte_len, rune_count}` fat pointer. Everything the *language*
+exposes is **rune-indexed**; the byte length is the representation's.
 
-`s[i]` is the i-th code point (O(i)), `for c in s` walks code points, and as of 08/06
-`s.len()` is the rune count (O(n)) and `s.slice(start, end)` a half-open rune range. `len`
-counts runes because the *index* already did: with a byte length,
-`for i in 0..<s.len() { s[i] }` would be wrong on the first non-ASCII input, silently and
-only for some inputs.
+`s[i]` is the i-th code point (O(i)), `for c in s` walks code points, and `s.len()` is the
+rune count — **O(1)** as of 08/12, a field read of the count the fat pointer carries,
+maintained arithmetically at each construction (a literal counts at compile time, `++`
+adds, `slice` subtracts its rune bounds; only read_line and interpolation's formatted
+segments pay one linear `lyra_utf8_count` pass over bytes they just produced). `len`
+counts runes because the *index* does — a byte length would silently disagree with `s[i]`
+on the first non-ASCII input — and the **indexed traversal is `for i, c in s`** (08/12):
+rune index and rune from one linear walk, the array convention. That form exists because
+the loop the old docs held up, `for i in 0..<s.len() { s[i] }`, decodes from the start at
+every `s[i]` — O(n²), the trap the prelude itself once fell into writing `starts_with` —
+and was the audit's last standing tension: the defense of rune-count len endorsed an
+idiom the design's own performance model condemned. `s.slice(start, end)` is a half-open
+rune range.
 
 **A negative index traps, and `from_end(k)` is the end-relative accessor** (08/12) — on
 strings and arrays alike, 1-based: `s.from_end(1)` is the last rune, `xs.from_end(2)` the
