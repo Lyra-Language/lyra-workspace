@@ -413,8 +413,23 @@ one instance of it in the prelude was caught.
 grammar a token-precedence rung, since tree-sitter compares precedence before match
 length and `///` would otherwise win on the first three characters of a section rule.
 
-Docs surface in LSP hover today, under the type. `lyrac doc` does not exist yet; the
-representation is in place for it.
+Docs surface in LSP hover, under the type, and **`lyrac doc` renders them** — one
+Markdown page per module, with Starlight frontmatter, so the standard library's reference
+page is generated rather than written:
+
+```bash
+lyrac doc std/prelude/prelude.lyra -o ../lyra-website/src/content/docs/reference --strict
+```
+
+`--private` includes unexported declarations, `--deps` follows imports, `--prelude` adds
+the standard library, `--strict` fails on a gap. An undocumented public declaration is
+still listed with its signature — omitting it would make the page misrepresent the
+module's surface — and coverage prints on every run, not only under `--strict`.
+
+**A signature on a page must parse as Lyra**, which is not free: the compiler's own type
+names are written for diagnostics (`DynamicArray<string>`, `boolean`) and a
+`ParameterizedType` renders as `Maybe` rather than `Maybe<t>`, so `pkg/docgen` renders
+source syntax and a test feeds every generated signature back through the parser.
 
 ## Console I/O
 
