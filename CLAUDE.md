@@ -200,9 +200,15 @@ operand the base cannot hold, a generic newtype).
 `let c: Cents = 150` and `let xs: []Percent = [10, 20]` are fine, `take(plain_i64)`
 against `(c: Cents)` is an error, and `Cents(x)` is how it is said. The line is
 provenance — a literal has no unit yet, a typed value came from somewhere, and that is
-where a unit mixup lives. It is Ada's rule for derived types. Reading *out* stays
-implicit (`let raw: i64 = c`), since there is no field accessor and refusing it would
-make a newtype write-only.
+where a unit mixup lives. It is Ada's rule for derived types, **in both directions**
+(`lyra-E047`, same day): reading out needs the base's name applied — `i64(c)`,
+`string(e)`, `bool(f)` — the constructor's mirror and an identity at runtime just as
+the constructor is. `string(...)`/`bool(...)` exist solely as that spelling
+(identity-only: no stringification, no truthiness); conversions look through a newtype
+on their operand, so `u8(cents)` behaves exactly as `u8(plain_i64)`. The one
+asymmetry: a newtype over a base the conversion cannot *name* — an array, a function
+type — keeps its implicit read-out, since refusing with no spelling to offer would
+make it write-only.
 
 **Constraints are checked wherever the newtype flows** — annotation, argument, return,
 array element — not only at a binding, and through the constructor too, so
@@ -221,9 +227,8 @@ methods the arithmetic the operator rule withholds, and accepted a mixed operand
 (`cents.wrapping_add(plain_i64)`) doing it, since the registry's signatures are
 base-typed. The two paths through are explicit: an operator impl (which **dispatches on a
 scalar newtype** as of the same day — the guard used to newtype-strip its receiver, so
-`impl Add for Cents` was silently inert), or reading the value into its base
-(`let raw: i64 = c` — one step; base ↔ newtype assignability is deliberate in both single
-steps, with only newtype → *other* newtype refused). Float rounding (`floor`/`ceil`/
+`impl Add for Cents` was silently inert), or converting to the base (`i64(c)`, the E047
+read-out spelling; only newtype → *other* newtype has no path at all). Float rounding (`floor`/`ceil`/
 `round`) stays transparent — a conversion's alternative, not an operator's. `println(c)`
 on a newtype still refuses; `impl Show for Cents` is the working answer and arguably the
 right one, since print is where transparency would erase the name the newtype carries.
