@@ -365,6 +365,57 @@ rules keep that safe: a printable primitive always takes the built-in formatter,
 rewrite never targets the method it is inside — `impl Show for Pt { show = (self) =>
 "${self}" }` is refused rather than compiled into infinite recursion.
 
+## Documentation Comments
+
+`///` documents the declaration below it; `//!` documents the module the file belongs
+to (08/13). The body is **Markdown**, with no `@param`/`@returns` tags — the signature
+is already in the AST, so a tag restating it is a second copy that goes stale, and the
+one thing it could add (prose about a parameter) is a sentence.
+
+Three headings are **recognized** — `# Examples`, `# Panics`, `# Errors`, matched
+case-insensitively and in the singular — so a renderer can give them a house style and a
+generator can index every `# Panics` in the standard library. An unrecognized heading is
+still a heading; it is simply not classified. `# Panics` and `# Errors` are separate
+because the split is the language's own: a trap ends the program, an `Err` is a value
+the caller handles. A heading inside a fenced code block is not a heading.
+
+**Six things carry documentation**, and they are exactly the declarations: a top-level
+`let`/`var`/`const`, a `type`, a `trait`, an `impl`, and — as members — a struct's
+fields, a data type's constructors, a trait's method signatures, and an impl's methods.
+Nothing else does. **Documentation attaches to declarations, not to types**: a field's
+doc lives on the `struct` declaration that names it (`TypeDeclStmt.MemberDocs`), never
+on `types.StructField`, so an *anonymous* struct's field cannot carry one and two
+structurally identical types stay structurally equal.
+
+**Attachment is adjacency, and a doc that attaches to nothing warns** (`lyra-W017`) —
+a blank line between the block and the declaration, a `///` at end of file, one on a
+local `let`, a `//!` after the first declaration. A blank line is the only signal an
+author has for "this is about the file, not the next declaration", and attaching across
+one would make the last comment in a file silently become the documentation of whatever
+is appended after it. A warning rather than an error, because a doc block above a
+temporarily commented-out declaration is an ordinary state to be in for a minute.
+
+**`//!` rather than a `///` above the `module` line**, because a module is a file *or a
+directory*: a directory module has no single header to sit above, and each of its files
+may say something about the module they join. It may sit at the top of the file **or
+directly under the `module` line** — the line naming the module is the obvious thing for
+its documentation to follow, and only Rust's lack of a module header makes top-of-file
+the sole spelling elsewhere. Several files' headers are joined in file order, keyed by
+module path on the symbol table (`SymbolTable.ModuleDocs`); the module's *summary* is
+therefore the first file's, which for the prelude means whichever file sorts first.
+
+**An implementation note goes above the doc block, never between it and the
+declaration** — attachment is adjacency, so an ordinary `//` in between detaches the
+documentation. It says so (`lyra-W017`) rather than failing silently, which is how the
+one instance of it in the prelude was caught.
+
+**A `////` divider rule is an ordinary comment**, not documentation — which costs the
+grammar a token-precedence rung, since tree-sitter compares precedence before match
+length and `///` would otherwise win on the first three characters of a section rule.
+
+Docs surface in LSP hover today, under the type. `lyrac doc` does not exist yet; the
+representation is in place for it.
+
 ## Console I/O
 
 Output is `print`/`println`, polymorphic over the printable scalars. **Input is
