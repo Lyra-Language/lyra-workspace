@@ -394,14 +394,22 @@ counts runes because the *index* already did: with a byte length,
 `for i in 0..<s.len() { s[i] }` would be wrong on the first non-ASCII input, silently and
 only for some inputs.
 
-**A negative index counts from the end** (08/08), as it does for an array: `s[-1]` is the
-last rune, and `slice` takes negative bounds too (`s.slice(1, -1)` drops the last rune). This
-is not sugar — it removes an O(n) tax with no workaround. Finding the k-th rune from the end
-is a *byte* walk that skips continuation bytes until it hits a lead byte, which UTF-8's
-self-synchronization makes well-defined and which decodes nothing; the spelling it replaces,
-`s[s.len() - 1]`, is two full decode walks. Measured at 34272 µs against 18 µs. Out of range
-traps in either direction, and the end position `s[n]` is still not an index — though
-`slice(n, n)` is the empty string, since an exclusive end may name it.
+**A negative index traps, and `from_end(k)` is the end-relative accessor** (08/12) — on
+strings and arrays alike, 1-based: `s.from_end(1)` is the last rune, `xs.from_end(2)` the
+second-to-last element. A negative index counted from the end from 08/08 until then, and
+the audit called that the design's sharpest self-contradiction: in the language whose
+thesis is trap-over-silently-wrong, the most common off-by-one — an index underflowing past
+zero — got a *valid read of the wrong element*. A provable negative (a literal, a folded
+constant) is a compile error naming the from_end spelling; a runtime one is caught by the
+same single unsigned bounds compare as everything else, and the value-range pass got
+*sharper* (any provably-negative index is now definite lyra-E022). The performance that
+justified the old spelling lives in the accessor unchanged — on a string it is the same
+backward byte walk, skipping continuation bytes with no decoding (re-measured after the
+change: 2 µs against 6082 µs per 2000 last-rune reads) — and `slice`'s negative bounds went
+with it (`s.slice(1, s.len() - 1)` is the same complexity class, since slice already walks
+and copies), as did `byte_offset`'s (a negative position is `None`, matching `index`'s
+negative offset). The end position `s[n]` is still not an index — though `slice(n, n)` is
+the empty string, since an exclusive end may name it.
 
 `slice` **allocates** — it copies into a fresh ref-counted box rather than borrowing its
 parent's bytes, because a box's header sits at its start and a pointer into the middle
