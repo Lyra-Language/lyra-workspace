@@ -227,6 +227,22 @@ array element — not only at a binding, and through the constructor too, so
 `Percent(150)` and `let p: Percent = 150` report alike (`lyra-E023`). `values(...)` is
 enforced as of 08/12 (`lyra-E045`); `step(...)` still is not.
 
+**They are compile-time assertions, not runtime ones** — the sentence above is about
+every position a constraint is *checked in*, not about every value that reaches one.
+A constraint catches a literal and whatever the value-range pass can pin to an
+interval, and silently accepts the rest: inside `let mk = (n: u8) -> Percent =>
+Percent(n)` nothing is provable, so `mk(200)` builds, runs and prints 200 — and
+`pattern(...)` behaves the same way. Whether the constructor should instead emit a
+runtime check and trap is open (`lyra/todo.md`, Known bugs); for `pattern` that would
+need a regex engine in the runtime, which is exactly what `lyra-E052` says is absent.
+
+**A regex literal is only a constraint's argument.** `where pattern(r"…")` works — the
+constraint stores the pattern's source text and compiles it at type-check time — but a
+regex as a *value* (`let re = r"[a-z]+"`) or as a *match pattern* (`match s { r"…" =>
+… }`) is `lyra-E052`, unimplemented: both type-checked clean and died in the backend
+until 08/13. There is no `regex` type to annotate either; a lowercase type name parses
+as a type variable, so `(re: regex)` declares one called `regex`.
+
 A newtype is **transparent to its base's methods** — `newtype Name = string` supports
 `len`/`slice`/`trim`, builtins and prelude `self:` functions alike — because a wrapped
 string you can do nothing with is not a trade anyone would take. The fallback is tried
