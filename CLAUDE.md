@@ -193,8 +193,11 @@ and `struct Matrix { cells: [16]f64 }` is a wrapper with a field, not an alias.
 **A newtype has a constructor, and a typed value must use it** (08/12). `Cents(150)` —
 and the juxtaposed `Cents 150`, which the collector erases into the same node — is a
 compile-time assertion about which type a value has, not a wrapper: it lowers to its
-operand and nothing else. Malformed forms are `lyra-E044` (wrong operand count, an
-operand the base cannot hold, a generic newtype).
+operand and nothing else. A *generic* newtype constructs by call too: `Boxed(5)` is
+`Boxed<i64>` (the named-tuple solver; an untyped operand promotes to its default, and
+`Boxed(u8(7))` says otherwise), with `Boxed::<u8>(200)` binding the parameters
+explicitly. Malformed forms are `lyra-E044` (wrong operand count, an operand the base
+cannot hold, a parameter the operand cannot solve).
 
 **An untyped literal converts implicitly; a typed value does not** (`lyra-E046`):
 `let c: Cents = 150` and `let xs: []Percent = [10, 20]` are fine, `take(plain_i64)`
