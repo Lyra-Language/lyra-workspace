@@ -227,14 +227,22 @@ array element — not only at a binding, and through the constructor too, so
 `Percent(150)` and `let p: Percent = 150` report alike (`lyra-E023`). `values(...)` is
 enforced as of 08/12 (`lyra-E045`); `step(...)` still is not.
 
-**They are compile-time assertions, not runtime ones** — the sentence above is about
-every position a constraint is *checked in*, not about every value that reaches one.
-A constraint catches a literal and whatever the value-range pass can pin to an
-interval, and silently accepts the rest: inside `let mk = (n: u8) -> Percent =>
-Percent(n)` nothing is provable, so `mk(200)` builds, runs and prints 200 — and
-`pattern(...)` behaves the same way. Whether the constructor should instead emit a
-runtime check and trap is open (`lyra/todo.md`, Known bugs); for `pattern` that would
-need a regex engine in the runtime, which is exactly what `lyra-E052` says is absent.
+**A constraint is checked at run time too** (08/13), so the ladder has both rungs: a
+provable violation is a compile error, and a value the compiler cannot see through is
+**trapped where it is constructed**. `mk(200)` on `let mk = (n: u8) -> Percent =>
+Percent(n)` now exits with `lyra: value violates its newtype's constraint` instead of
+printing 200. The typechecker publishes only the sites it could *not* settle
+statically, so a literal construction costs nothing and a runtime one costs a single
+compare-and-branch — what overflow-checked arithmetic already pays.
+
+`step(...)` is a real constraint as of the same day, having been collected and read
+by nothing: the values covered are `start, start+step, …` measured from the range's
+start, so `range(5..<=95), step(10)` accepts 15 and refuses 10 (`lyra-E053`, and the
+matching trap). **`pattern(...)` is the exception**: matching one at run time needs a
+regex engine the runtime does not have (`lyra-E052`), so a value that is not a string
+literal is **refused** (`lyra-E054`) rather than admitted unchecked — the guarantee
+stays whole, at the cost of not building one of these from runtime data until an
+engine exists.
 
 **A regex literal is only a constraint's argument.** `where pattern(r"…")` works — the
 constraint stores the pattern's source text and compiles it at type-check time — but a
