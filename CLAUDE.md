@@ -320,6 +320,40 @@ each node exactly **one** path, which made the parser *smaller* (7730 → 7711 s
 adding a second derivation instead is an unresolved reduce-reduce at every operand
 position, which is the same partition rule that governs `_literal` vs `_primary_expr`.
 
+## Supertraits
+
+`trait B: A` means two things, and both hold as of 08/14: **every implementer of `B` must
+implement `A`** (`lyra-E040`, checked at each `impl`), and **a `where t: B` bound reaches
+`A`'s methods** — `v.foo()` resolves, and `v` satisfies a callee bounded `where u: A`.
+
+The second half is what a supertrait is *for*, and it was missing for a week while the
+first was enforced: the language promised a thing exists and gave the one place that needs
+it no way to reach it. The forwarding diagnostic even asked for a `where u: A` that `B`
+already guarantees.
+
+A **cycle is legal** — `trait A: B` alongside `trait B: A` — and says the two are always
+implemented together, which is exactly what the obligation then requires of every
+implementer.
+
+The shape that motivates the feature is an **umbrella** trait — one with no methods of its
+own, naming a bundle:
+
+```lyra
+trait Arithmetic: Add + Sub + Mul + Div      // or `… { }`; the body is optional
+impl Arithmetic for Vec2 {}
+let combine<t> where t: Arithmetic = (a: t, b: t) -> t => a * b + a
+```
+
+That needed a grammar change on the same day: a trait's body is optional, braces and all.
+A member list was deliberately non-empty — correct while a method-less trait meant nothing,
+and supertraits are exactly what stopped that being true. The bodiless spelling is the one to
+reach for, since there is no body to delimit; Rust needs its `{}` only because it has no
+statement terminator to end the declaration.
+
+The umbrella's impl is still required and still checked: `impl Arithmetic for Vec2 {}` is
+what triggers the obligation, so a type missing `Mul` is refused there rather than at the
+call.
+
 ## Calling on a Receiver
 
 Two related features, both 08/03, both opted into by naming a function's first parameter
