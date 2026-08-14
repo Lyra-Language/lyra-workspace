@@ -517,14 +517,14 @@ result **traps** (08/14): `fptosi` is poison rather than saturating in LLVM, so
 `(1.0e20).floor()` used to answer 0 under one optimization level and `i64::MIN` under
 another. A NaN traps on the same edge.
 
-Logarithms are `log` (natural), `log2` and `log10`, each answering the receiver's **own**
-width. They are builtins on the `random_seed` rule rather than the `parse_i64` one — a
-logarithm is not expressible in the language, having no series, no table and no FFI to
-reach libm. All three ship together because smooth mandelbrot coloring is
-`n + 1 - log2(log(|z|))`, and because the trio makes the bare name's base unambiguous by
-contrast: `log` is the one with no subscript. Outside the domain they answer IEEE's value —
-`log(0)` is `-inf`, `log(-1)` is a NaN — the same choice float division makes; the trap
-comes later, at the integer conversion, and in one place.
+`log` (natural), `log2`, `log10` and `sqrt` each answer the receiver's **own** width.
+They are builtins on the `random_seed` rule rather than the `parse_i64` one — none is
+expressible in the language, having no series, no table and no FFI to reach libm. The three
+logarithms ship together because smooth mandelbrot coloring is `n + 1 - log2(log(|z|))`,
+and because the trio makes the bare name's base unambiguous by contrast: `log` is the one
+with no subscript. Outside their domains they answer IEEE's value — `log(0)` is `-inf`,
+`log(-1)` and `sqrt(-1)` are NaN — the same choice float division makes; the trap comes
+later, at the integer conversion, and in one place.
 
 **`to_fixed(places)` is the precision knob `print` deliberately lacks** (ordinary Lyra, in
 `std/prelude/format.lyra`). The built-in formatter writes the shortest rendering that reads
