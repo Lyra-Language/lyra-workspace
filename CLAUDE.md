@@ -509,6 +509,29 @@ that is the one place the bit is charged.
 `Random.global()` was an effect-table entry naming nothing (no signature, no lowering — it
 type-checked and crashed the backend); it is gone.
 
+## Float Math and Formatting
+
+Rounding is `floor`/`ceil`/`round`, each answering an **i64** — they are the escape hatch
+the lossy-conversion error points to, since `i64(x)` on a float is refused. An out-of-range
+result **traps** (08/14): `fptosi` is poison rather than saturating in LLVM, so
+`(1.0e20).floor()` used to answer 0 under one optimization level and `i64::MIN` under
+another. A NaN traps on the same edge.
+
+Logarithms are `log` (natural), `log2` and `log10`, each answering the receiver's **own**
+width. They are builtins on the `random_seed` rule rather than the `parse_i64` one — a
+logarithm is not expressible in the language, having no series, no table and no FFI to
+reach libm. All three ship together because smooth mandelbrot coloring is
+`n + 1 - log2(log(|z|))`, and because the trio makes the bare name's base unambiguous by
+contrast: `log` is the one with no subscript. Outside the domain they answer IEEE's value —
+`log(0)` is `-inf`, `log(-1)` is a NaN — the same choice float division makes; the trap
+comes later, at the integer conversion, and in one place.
+
+**`to_fixed(places)` is the precision knob `print` deliberately lacks** (ordinary Lyra, in
+`std/prelude/format.lyra`). The built-in formatter writes the shortest rendering that reads
+back as the same value, which is right for inspecting a number and wrong for a column of
+them — `1.0 / 3.0` prints seventeen digits, and a small magnitude switches to scientific
+notation. `zoom.to_fixed(4)` is `0.3333` and never switches notation.
+
 ## The Clock
 
 `wall_clock_nanos() -> i64` (08/06) is `clock_gettime(CLOCK_REALTIME, …)` and nothing else —
