@@ -340,7 +340,7 @@ own, naming a bundle:
 
 ```lyra
 trait Arithmetic: Add + Sub + Mul + Div      // or `… { }`; the body is optional
-impl Arithmetic for Vec2 {}
+impl Arithmetic for Vec2
 let combine<t> where t: Arithmetic = (a: t, b: t) -> t => a * b + a
 ```
 
@@ -350,7 +350,7 @@ and supertraits are exactly what stopped that being true. The bodiless spelling 
 reach for, since there is no body to delimit; Rust needs its `{}` only because it has no
 statement terminator to end the declaration.
 
-The umbrella's impl is still required and still checked: `impl Arithmetic for Vec2 {}` is
+The umbrella's impl is still required and still checked: `impl Arithmetic for Vec2` is
 what triggers the obligation, so a type missing `Mul` is refused there rather than at the
 call.
 
