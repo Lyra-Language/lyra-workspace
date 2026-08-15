@@ -484,6 +484,42 @@ is a compiler builtin because it *has* to be — the line comes from libc and Ly
 the language goes in the prelude, where it is readable, testable and replaceable; the builtin
 registry stays whatever is genuinely primitive.
 
+## The Terminal
+
+Three builtins, and they are the whole of what an interactive TUI needs from the
+compiler (08/15):
+
+- `set_raw_mode(on: bool)` — echo, line buffering and signal generation off, so a
+  keypress is readable the moment it happens;
+- `read_key() -> Maybe<rune>` — one **code point**, `None` at EOF;
+- `terminal_size() -> (i64, i64)` — **(columns, rows)**, width first.
+
+**Only input needed the compiler.** `\e` and `\x1b` both reach stdout as byte 27, so
+ANSI colour, absolute cursor positioning, clear-screen and the alternate buffer are
+ordinary `print` calls and always were. What no prelude code can fix is that `read_line`
+waits for Enter — that is the terminal's line discipline, and turning it off is a
+syscall. Everything above these three — decoding `\e[A` into "up arrow", colour helpers,
+box drawing, frame diffing — is ordinary Lyra, unwritten, and belongs in `std.tui`; that
+is the `read_line`/`parse_i64` division again.
+
+`read_key` answers a **code point rather than a byte** because `rune` means one
+everywhere else, so a multi-byte character is one key instead of two broken ones. It
+does *not* decode escape sequences: an arrow key arrives as ESC, `[`, `A` in three
+calls, since telling a real ESC press from the start of a sequence needs a timeout,
+a table and a policy for unknown sequences — none of them primitive.
+
+**The three do not carry the same effect**, which is the part worth remembering.
+`set_raw_mode` is EffectOutput and so `det`-legal — it changes the world rather than
+reading it, and does so deterministically — while `read_key` and `terminal_size` are
+EffectInput. The size is the surprising one: it reads no input and returns the same pair
+all day, but the window can be resized between two calls, and a viewer that redraws on
+resize depends on exactly that.
+
+Neither of the last two can fail into nonsense. `terminal_size` answers 80x24 where
+there is no window, so a piped run still renders; `set_raw_mode` saves the original
+termios on the first enable and restores *that* on disable, rather than handing the
+caller a token to keep safe — a terminal left raw after exit is unusable.
+
 ## Randomness
 
 `random_seed() -> u64` (one word of OS entropy) is the **only** builtin; the generator is
