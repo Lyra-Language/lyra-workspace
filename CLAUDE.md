@@ -515,6 +515,14 @@ EffectInput. The size is the surprising one: it reads no input and returns the s
 all day, but the window can be resized between two calls, and a viewer that redraws on
 resize depends on exactly that.
 
+**The mouse needs no builtin at all** (08/15). A terminal reports clicks as escape
+sequences *on stdin*, so enabling is a `print` and receiving is `read_key` — `std.tui`
+has the whole of it. One constraint falls out of `read_key` answering a code point: it
+must be **SGR mode** (`\e[?1006h`), whose fields are ASCII digits. The legacy X10
+encoding sends three raw bytes, so a column past 95 is a byte ≥ 128 — a UTF-8 lead byte,
+which `read_key` decodes by swallowing the two bytes after it, losing the column and row
+together. That would present as a coordinate bug on wide terminals only.
+
 Neither of the last two can fail into nonsense. `terminal_size` answers 80x24 where
 there is no window, so a piped run still renders; `set_raw_mode` saves the original
 termios on the first enable and restores *that* on disable, rather than handing the
