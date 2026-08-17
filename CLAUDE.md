@@ -515,6 +515,20 @@ EffectInput. The size is the surprising one: it reads no input and returns the s
 all day, but the window can be resized between two calls, and a viewer that redraws on
 resize depends on exactly that.
 
+**A fourth builtin, `wait_for_key_ms(timeout: i64) -> bool`** (08/17): wait up to
+`timeout` milliseconds and say whether input is readable. It exists because `\e` begins
+every escape sequence, so a decoder must look at what follows — and with only a blocking
+read a lone Escape waited for the *next* keypress. It also lets a program poll instead of
+blocking, which is how a viewer redraws on a window resize with no key pressed.
+
+**A bool rather than a timed read, by a counting argument.** Three outcomes — a key
+arrived, nothing yet, input ended — do not fit a `Maybe<rune>`'s two answers, and
+conflating "nothing yet" with "ended" is the mistake `read_line`'s `Maybe` exists to avoid.
+Split instead: this says whether there is anything, `read_key` says whether it is a key or
+the end. A closed descriptor reports readable, so the two compose exactly. A negative
+timeout clamps to zero, because `deadline - now()` goes negative naturally and "do not
+wait" is the meaning.
+
 **The mouse needs no builtin at all** (08/15). A terminal reports clicks as escape
 sequences *on stdin*, so enabling is a `print` and receiving is `read_key` — `std.tui`
 has the whole of it. One constraint falls out of `read_key` answering a code point: it
