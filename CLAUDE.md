@@ -5,6 +5,11 @@ Lyra is a programming language under active development. This workspace contains
 ## Working Agreements
 
 - **Commit directly to `main`.** Do not create feature branches — this is a single-developer workspace and all work goes straight to `main`. Commit only when asked.
+- **Lyra sources read top-down.** Put `main` at the top of the file and the functions it
+  calls below it, in rough order of use; for a library module, public API first and private
+  helpers after. The reader gets the shape of the program before the details of any one
+  piece. There is no forward-declaration constraint — a top-level `let` may call one
+  declared later in the same file — so the order is purely for the reader.
 - **Keep todo items succinct.** When tracking work in a todo list, keep each item to 2–3 sentences max.
 - **Maintenance:** When making code changes, update the relevant `CLAUDE.md` file(s) to reflect them — this includes new packages, renamed files, changed commands, updated architecture, and shifts in development focus. There is a `CLAUDE.md` at the workspace root (this file) and one in each sub-project: `lyra/CLAUDE.md`, `tree-sitter-lyra/CLAUDE.md`, `lyra-vscode-ext/CLAUDE.md`, `lyra-zed-ext/CLAUDE.md`, and `lyra-website/CLAUDE.md`.
 
