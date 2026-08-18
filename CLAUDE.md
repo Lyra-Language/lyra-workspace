@@ -166,6 +166,24 @@ same rule and diagnostic as `xs[i] = v`), and `noalloc` refuses it.
   is a syntax error. The size is part of the type, and a type cannot depend on a value
   the compiler has not got. `const M = N * 2` works — const chains fold.
 
+Evaluating once is also the form's one trap, and `lyra-W019` names it (08/18):
+`[[' '; WIDTH]; HEIGHT]` is **one** row referenced HEIGHT times, so every
+`grid[py][px] = c` writes the same place and every row prints identically — a plausible
+image rather than an error, which is how it survived two other bugs in
+`examples/mandelbrot.lyra`. The semantics are right and did not change; what was missing
+is that nothing said so, since "n copies" reads as "n *independent* copies" to almost
+everyone. A **warning**, because the code is correct and a deliberate alias is a real
+thing to want.
+
+The predicate is narrower than "managed" and each rung of it was measured: a `[]T`, a
+`shared` aggregate with a writable field, or any struct/tuple/`data`/`[N]T` containing one.
+A string is managed and *immutable*, so `["hi"; 3]` — correct code and the commoner
+spelling by far — stays silent. Two answers came out against the guess: `readonly` does
+not stop the sharing (it blocks the direct write, not `let mut c = fs[0].cells` then
+`c[0] = 7`), and a `shared` **scalar** does not share, since assigning to the binding
+rebinds it rather than writing the box. `examples/life.lyra` — Conway's Game of Life,
+toroidal, sized to the window — is the program written to walk into the shape.
+
 ## Ranges
 
 Four end operators, two axes: `..<` `..<=` ascend, `..>` `..>=` descend; `..<` `..>` exclude
