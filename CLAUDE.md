@@ -7,11 +7,11 @@ Lyra is a programming language under active development. This workspace contains
 - **Commit directly to `main`.** Do not create feature branches — this is a single-developer workspace and all work goes straight to `main`. Commit only when asked.
 - **Lyra sources read top-down.** Put `main` at the top of the file and the functions it
   calls below it, in rough order of use; for a library module, public API first and private
-  helpers after. The reader gets the shape of the program before the details of any one
-  piece. There is no forward-declaration constraint — a top-level `let` may call one
+  helpers after. There is no forward-declaration constraint — a top-level `let` may call one
   declared later in the same file — so the order is purely for the reader.
 - **Keep todo items succinct.** When tracking work in a todo list, keep each item to 2–3 sentences max.
-- **Maintenance:** When making code changes, update the relevant `CLAUDE.md` file(s) to reflect them — this includes new packages, renamed files, changed commands, updated architecture, and shifts in development focus. There is a `CLAUDE.md` at the workspace root (this file) and one in each sub-project: `lyra/CLAUDE.md`, `tree-sitter-lyra/CLAUDE.md`, `lyra-vscode-ext/CLAUDE.md`, `lyra-zed-ext/CLAUDE.md`, and `lyra-website/CLAUDE.md`.
+- **Maintenance:** When making code changes, update the relevant `CLAUDE.md` file(s) — new packages, renamed files, changed commands, updated architecture, shifts in development focus. There is one at the workspace root (this file) and one in each sub-project.
+- **This file records rules, not history.** The reasoning behind a decision goes in `lyra/COMPLETED.md`; open work goes in `lyra/todo.md`. Keep entries here to what is true today and what will bite someone tomorrow.
 
 ## Sub-Projects
 
@@ -23,13 +23,13 @@ Lyra is a programming language under active development. This workspace contains
 | `lyra-zed-ext/` | Rust (wasm) | Zed extension — launches the LSP server; owns its own tree-sitter queries |
 | `lyra-website/` | Astro | Public site — dev blog and docs/guides (Starlight) |
 
-The Go module (`github.com/Lyra-Language/lyra`) depends on the tree-sitter grammar via a `replace` directive pointing to `../tree-sitter-lyra`. Each sub-project has its own detailed command and architecture notes in its `CLAUDE.md`.
+The Go module (`github.com/Lyra-Language/lyra`) depends on the tree-sitter grammar via a `replace` directive pointing to `../tree-sitter-lyra`. Each sub-project has its own detailed notes in its `CLAUDE.md`.
 
 ## Bootstrapping the Workspace
 
-Each sub-project is its **own independent Git repo** with its own remote under `Lyra-Language`; the workspace repo tracks only `CLAUDE.md`, `lyra.code-workspace`, and the two setup scripts (`.gitignore` ignores everything else by default, so a sub-project can never be committed here by accident). They are **not** submodules — nothing pins their commits — so a fresh clone of `lyra-workspace` gets the docs but none of the code.
+Each sub-project is its **own independent Git repo** with its own remote under `Lyra-Language`; the workspace repo tracks only `CLAUDE.md`, `lyra.code-workspace` and the two setup scripts (`.gitignore` ignores everything else, so a sub-project can never be committed here by accident). They are **not** submodules, so a fresh clone of `lyra-workspace` gets the docs but none of the code.
 
-`setup.sh` (macOS/Linux) and `setup.ps1` (Windows) reconstitute the tree (`README.md` documents this for humans, incl. per-OS prerequisites and the Windows execution-policy step):
+`setup.sh` (macOS/Linux) and `setup.ps1` (Windows) reconstitute the tree; `README.md` documents this for humans, including per-OS prerequisites and the Windows execution-policy step.
 
 ```bash
 ./setup.sh              # clone anything missing, fetch what's already there
@@ -37,13 +37,13 @@ Each sub-project is its **own independent Git repo** with its own remote under `
 ./setup.sh --https      # use https:// remotes instead of git@ (no SSH key)
 ```
 
-Both are idempotent and safe to re-run. `--pull` fast-forwards **only** a clean repo with no local commits — a dirty or diverged working tree is reported and left untouched, never merged or reset. Repos are processed grammar-first, since the Go module `replace`s into `../tree-sitter-lyra`.
+Both are idempotent. `--pull` fast-forwards **only** a clean repo with no local commits — a dirty or diverged tree is reported and left untouched, never merged or reset. Repos are processed grammar-first, since the Go module `replace`s into `../tree-sitter-lyra`. A failed clone has its partial directory removed so a re-run retries cleanly.
 
-**git-lfs used to be a hard prerequisite for `tree-sitter-lyra`** and no longer is. Its generated `src/parser.c` was ~115 MB in Git LFS, so without `git-lfs` on `PATH` git invoked it mid-checkout and the clone died partway; the scripts had to detect that and skip the repo. The grammar's `lambda_expr` rule was rebuilt to stop a parser state explosion (62,663 states → 6,475), and the file is now 12.8 MB of ordinary tracked text — a plain clone suffices, and only a checkout of a *historical* commit still needs LFS. Any failed clone still has its partial directory removed so a re-run retries cleanly.
+git-lfs is **not** a prerequisite: `tree-sitter-lyra`'s generated `src/parser.c` is 12.8 MB of ordinary tracked text, so a plain clone suffices. Only a checkout of a *historical* commit still needs it.
 
 ## Running the Suite on Linux (`asan.sh`)
 
-`./asan.sh` runs the test suite in a Debian container (`asan.Dockerfile`), mounting both `lyra/` and `tree-sitter-lyra/` read-only — both, because the Go module reaches the grammar through a `replace` directive, so a container with only `lyra` cannot resolve its own dependency. No Node or tree-sitter CLI is needed: the generated `src/parser.c` is tracked in the repo and the container only compiles it (which also sidesteps the arm64-Linux tree-sitter build quirk needing `CC=gcc`). Caches live in a named volume, never in the mounted tree, so Linux artifacts can't mix with the host's macOS ones.
+`./asan.sh` runs the test suite in a Debian container (`asan.Dockerfile`), mounting both `lyra/` and `tree-sitter-lyra/` read-only — both, because the Go module reaches the grammar through a `replace` directive. No Node or tree-sitter CLI is needed: the generated `src/parser.c` is tracked and the container only compiles it. Caches live in a named volume, never in the mounted tree, so Linux artifacts cannot mix with the host's macOS ones.
 
 ```bash
 ./asan.sh                 # the ASan suite (pkg/backend/llvm)
@@ -53,11 +53,9 @@ Both are idempotent and safe to re-run. `--pull` fast-forwards **only** a clean 
 LEAKS=1 ./asan.sh         # also enable LeakSanitizer (expect known-accepted noise)
 ```
 
-**Two things it is for, and one it is not.** It catches (a) genuine memory faults, and (b) **invalid IR that modern clang cannot even diagnose**: Debian's older clang still uses *typed pointers*, so it rejects a function-type mismatch that Apple clang 21's opaque pointers make indistinguishable — which is how a real miscompile was found where a `(u8, u8)` tuple argument was built at the i64 default width. It is **not** the fix for ASan missing memory faults; that was missing `sanitize_address` instrumentation, which affected macOS and Linux equally and is fixed in the harness (see `lyra/CLAUDE.md`'s backend-testing section). Both `lyrac`-level Linux gaps it surfaced — an anonymous tuple argument built at the wrong width, and a signed `i128` multiply that could not link — are fixed; see `lyra/COMPLETED.md`'s 07/30 entries. The whole suite passes on Linux as of 07/30.
+**Two things it is for.** It catches (a) genuine memory faults, and (b) **invalid IR that modern clang cannot even diagnose**: Debian's older clang still uses *typed pointers*, so it rejects a function-type mismatch that Apple clang 21's opaque pointers make indistinguishable. It is **not** the fix for ASan missing memory faults — that was missing `sanitize_address` instrumentation, fixed in the harness (see `lyra/CLAUDE.md`'s backend-testing section). The whole suite passes on Linux.
 
-It also **clears the container's Go build cache when the generated parser changes**, keyed on the parser's size+mtime. This is the workspace's own documented build-cache hazard, and the script walked into it: the cache lives in a named volume, Go does not hash `#include`d sources, and so a regenerated `parser.c` left the compiled-parser object stale — the suite ran against the *old* grammar, silently, and only in the container, which reads as a platform difference rather than a stale build.
-
-The script **preflights** that ASan actually links and runs, and fails hard if not. Debian's `clang` package does not pull in `libclang-rt-dev`, and without it every ASan test *skips* — a green run that verified nothing, which is exactly what the first build of this image did.
+It **clears the container's Go build cache when the generated parser changes**, keyed on the parser's size+mtime. Go does not hash `#include`d sources, so without this a regenerated `parser.c` leaves the compiled-parser object stale and the suite runs against the *old* grammar — silently, and only in the container, which reads as a platform difference. It also **preflights** that ASan actually links and runs, and fails hard if not: Debian's `clang` package does not pull in `libclang-rt-dev`, and without it every ASan test *skips*.
 
 ## Critical Cross-Project Dependency
 
@@ -68,12 +66,12 @@ After changing `tree-sitter-lyra/grammar.js`:
 
 Skipping step 2 causes tests to silently run against the old grammar.
 
-**CI grammar sync (two things must both hold).** `lyra` and `tree-sitter-lyra` are independent GitHub repos under `Lyra-Language`. CI for `lyra` (`.github/workflows/ci.yml`) checks out the **`tree-sitter-lyra` remote** and *regenerates* the parser from its `grammar.js` (`npm run build`) — it does not use the grammar in your local sibling directory. Two independent hazards, both of which caused real CI failures:
+**CI grammar sync (two things must both hold).** CI for `lyra` (`.github/workflows/ci.yml`) checks out the **`tree-sitter-lyra` remote** and *regenerates* the parser from its `grammar.js` — it does not use your local sibling directory.
 
-1. **Push ordering.** A grammar change must be **pushed to `tree-sitter-lyra` before (or with) the `lyra` code that depends on it** — push `tree-sitter-lyra` first, then `lyra`. Pushing only the `lyra` side leaves CI regenerating from an old `grammar.js`, so every test exercising the new grammar fails. `src/parser.c` is regenerated and committed with the grammar, so the push carries it (ordinary text since it left Git LFS — a grammar change is a large but reviewable diff).
-2. **Build-cache staleness (the subtle one).** The CGO binding pulls the grammar in with `#include "../../src/parser.c"` (`tree-sitter-lyra/bindings/go/binding.go`). Go's build cache hashes the `.go` files and tracked cgo sources but **not** files brought in via `#include`, so a regenerated `parser.c` does **not** invalidate the compiled-parser object that `setup-go` restores from a previous run. Without a `go clean -cache` **after** regeneration, CI silently reuses the stale grammar even when the remote is fully up to date — the rune work failed CI this way *after* the grammar was correctly pushed. The CI workflow now runs `go clean -cache` post-regeneration (the same local step in the numbered list above); keep that step.
+1. **Push ordering.** A grammar change must be **pushed to `tree-sitter-lyra` before (or with) the `lyra` code that depends on it**. Pushing only the `lyra` side leaves CI regenerating from an old `grammar.js`, so every test exercising the new grammar fails. `src/parser.c` is regenerated and committed with the grammar, so the push carries it.
+2. **Build-cache staleness (the subtle one).** The CGO binding pulls the grammar in with `#include "../../src/parser.c"`. Go's build cache hashes `.go` files and tracked cgo sources but **not** `#include`d ones, so a regenerated `parser.c` does not invalidate the compiled-parser object `setup-go` restores from a previous run. The CI workflow runs `go clean -cache` post-regeneration — keep that step.
 
-**A third consumer, with the same push-first rule.** `lyra-zed-ext/extension.toml` pins `tree-sitter-lyra` **by commit**, and Zed clones that repo and compiles `src/parser.c` itself — it never reads the sibling checkout either. So a grammar change reaches Zed only once it is pushed *and* the pin is bumped; a pin to an unpushed commit fails the grammar build outright. The tree-sitter queries that go with it live in `lyra-zed-ext/languages/lyra/`, not in the grammar repo, and a query naming a node that no longer exists makes Zed drop the whole file — every Lyra buffer loses all highlighting at once rather than one rule quietly going missing. See `lyra-zed-ext/CLAUDE.md` for how to verify them.
+**A third consumer, with the same push-first rule.** `lyra-zed-ext/extension.toml` pins `tree-sitter-lyra` **by commit**, and Zed clones that repo and compiles `src/parser.c` itself. A grammar change reaches Zed only once it is pushed *and* the pin is bumped; a pin to an unpushed commit fails the grammar build outright. The queries that go with it live in `lyra-zed-ext/languages/lyra/`, not in the grammar repo, and a query naming a node that no longer exists makes Zed drop the whole file — every Lyra buffer loses all highlighting at once. See `lyra-zed-ext/CLAUDE.md` for how to verify them.
 
 ## Data Flow
 
@@ -86,318 +84,128 @@ source text
 
 ## The Compiler (`lyra/`)
 
-`lyra/CLAUDE.md` is the map: what each package is, the rules that hold across all of them,
-and a pointer to a `README.md` beside each package's code for the depth. Start there rather
-than here — this file duplicated that reference until 07/30 and the copy drifted.
+`lyra/CLAUDE.md` is the map: what each package is, the rules that hold across all of them, and a pointer to a `README.md` beside each package's code. Start there rather than here.
 
 ## Primitive Types
 
-Integers: `i8`, `i16`, `i32`, `i64`, `i128`, `u8`, `u16`, `u32`, `u64`, `u128` (no platform-dependent `int`/`uint` — removed for determinism; untyped integer literals default to `i64`). `i128`/`u128` lower natively (LLVM `i128`, 16/16 ABI); checked arithmetic + `match`/comparisons/conversions extend for free by width, division/`%%` go through compiler-rt, and `print` uses a hand-written base-10 formatter (`lyra_i128_to_str`, no printf 128-bit specifier). A 128-bit literal is writable as of 08/08 (`let mx: i128 = 170141183460469231731687303715884105727`): the magnitude lives in a `big.Int` on the literal node, nil for anything that fits 64 bits. It stays *untyped* where both `i128` and `u128` could hold it, so context picks. Compile-time folding is arbitrary-precision as of 08/08 (`ast.FoldBigExpr` folds in `big.Int`; `FoldIntExpr` narrows at the end, so a consumer needing an int64 gets ok=false rather than a wrapped value), and the value-range pass leaves 128-bit values ⊤ (untracked, sound) like `u64`.
-Bitwise/shift on integers (08/02): `&`, `|`, `~` (xor), `<<`, `>>`, prefix `~` (complement),
-plus the five compound assignments. **Xor is `~`, not `^`** — `^` is taken by raw-pointer
-types (`^T`) and postfix deref (`ptr^`). Precedence is not C's: bitwise binds *tighter than
-comparison* (so `flags & MASK == 0` groups as a human reads it) and looser than arithmetic,
-with shifts above addition. An out-of-range shift amount **traps** rather than doing whatever
-the target's shift hardware does. Integers only — no float operand, at any width.
-Floats: `f16`, `f32`, `f64` (there is no bare `float` keyword; untyped float literals default to `f64`)
-Other: `bool`, `string`, `rune` (a Unicode code point, i32 — Go/Odin naming)
-Compiler-internal, no syntax: `never` — the bottom type, the result of `panic(msg)`. Assignable
-to every type (nothing is assignable to it), which is what lets a diverging expression sit in
-value position: `match m { Some(v) => v, None => panic("…") }`. `panic` is the one trap a
-program reaches deliberately; it is EffectNone, so `pure`/`det`/`noalloc` may all call it.
-Internal (literal inference only): `untyped_int`, `untyped_signed_int`, `untyped_float`
+Integers: `i8`, `i16`, `i32`, `i64`, `i128`, `u8`, `u16`, `u32`, `u64`, `u128`. There is no platform-dependent `int`/`uint` — removed for determinism; untyped integer literals default to `i64`.
+
+`i128`/`u128` lower natively (LLVM `i128`, 16/16 ABI): checked arithmetic, `match`, comparisons and conversions extend by width, division and `%%` go through compiler-rt, and `print` uses a hand-written base-10 formatter (`lyra_i128_to_str`). A 128-bit literal is writable; the magnitude lives in a `big.Int` on the literal node, nil for anything that fits 64 bits, and it stays *untyped* where both `i128` and `u128` could hold it. Compile-time folding is arbitrary-precision (`ast.FoldBigExpr`; `FoldIntExpr` narrows at the end, so a consumer needing an int64 gets ok=false rather than a wrapped value). The value-range pass leaves 128-bit values ⊤ (untracked, sound), like `u64`.
+
+Bitwise/shift on integers: `&`, `|`, `~` (xor), `<<`, `>>`, prefix `~` (complement), plus the five compound assignments. **Xor is `~`, not `^`** — `^` is taken by raw-pointer types (`^T`) and postfix deref (`ptr^`). Precedence is not C's: bitwise binds *tighter than comparison* (so `flags & MASK == 0` groups as a human reads it) and looser than arithmetic, with shifts above addition. An out-of-range shift amount **traps**. Integers only — no float operand at any width.
+
+Floats: `f16`, `f32`, `f64` (no bare `float` keyword; untyped float literals default to `f64`).
+Other: `bool`, `string`, `rune` (a Unicode code point, i32).
+
+Compiler-internal, no syntax: `never` — the bottom type, the result of `panic(msg)`. Assignable to every type (nothing is assignable to it), which lets a diverging expression sit in value position: `match m { Some(v) => v, None => panic("…") }`. `panic` is EffectNone, so `pure`/`det`/`noalloc` may all call it.
+Internal (literal inference only): `untyped_int`, `untyped_signed_int`, `untyped_float`.
 
 ## Overflow Arithmetic
 
-Integer `+ - * /` **trap** on overflow. The three explicit alternatives are builtin
-methods on any concrete integer width, and having all three is the point of trapping by
-default — each says what the author meant:
+Integer `+ - * /` **trap** on overflow. The three explicit alternatives are builtin methods on any concrete integer width, and having all three is the point of trapping by default — each says what the author meant:
 
 - `wrapping_add`/`_sub`/`_mul` — modular two's-complement arithmetic;
 - `saturating_add`/`_sub`/`_mul` — clamp to the type's range;
-- `checked_add`/`_sub`/`_mul`/`_div` (08/08) — `Maybe<T>`, `None` where it would have
-  overflowed.
+- `checked_add`/`_sub`/`_mul`/`_div` — `Maybe<T>`, `None` where it would have overflowed.
 
-`checked_div` is in that set although division cannot overflow in the intrinsic sense:
-its two failures are a zero divisor and `INT_MIN / -1`, which are exactly the two cases
-`/` traps on. There is no `checked_rem` yet — Lyra has two remainder operators (`%` and
-`%%`), so the name would have to say which.
+`checked_div` is in that set although division cannot overflow in the intrinsic sense: its two failures are a zero divisor and `INT_MIN / -1`, which are exactly the two cases `/` traps on. There is no `checked_rem` yet — Lyra has two remainder operators (`%` and `%%`), so the name would have to say which.
 
-All of them are pure and allocate nothing (a `Maybe` of a scalar is an inline union), so
-they are usable from `pure noalloc` code — which is the code that most wants them.
+All of them are pure and allocate nothing (a `Maybe` of a scalar is an inline union), so they are usable from `pure noalloc` code.
 
-**A literal that cannot hold its value is a compile error in every position** (08/13,
-`lyra-E048` for patterns): a match arm's `300` on a u8 scrutinee, a range-pattern bound,
-a `Some(300)` payload on `Maybe<u8>`, a value outside a newtype's range constraint, and a
-return-position `() -> u8 => 300` are all refused rather than truncated — patterns lower
-at the scrutinee's width, so the unchecked arm was not dead, it *matched 44*. Everything
-in these positions is a compile-time constant by grammar, so the trap ladder's provable
-rung is the whole ladder. One grace: an exclusive range end names a position, so `0..<256`
-on a u8 (the full range) is legal and `0..<257` is not.
+**A literal that cannot hold its value is a compile error in every position** (`lyra-E048` for patterns): a match arm's `300` on a u8 scrutinee, a range-pattern bound, a `Some(300)` payload on `Maybe<u8>`, a value outside a newtype's range constraint, and a return-position `() -> u8 => 300` are all refused rather than truncated. Everything in these positions is a compile-time constant by grammar. One grace: an exclusive range end names a position, so `0..<256` on a u8 is legal and `0..<257` is not.
 
 ## Arrays
 
-`[1, 2, 3]` is a fixed-size `[3]T`; the same literal under a `[]T` annotation builds a
-heap-allocated dynamic array instead, so the two are told apart by what the literal is
-*used as* rather than by how it is written (`noalloc` refuses the second, not the first).
+`[1, 2, 3]` is a fixed-size `[3]T`; the same literal under a `[]T` annotation builds a heap-allocated dynamic array instead — so the two are told apart by what the literal is *used as* rather than by how it is written, and `noalloc` refuses the second, not the first.
 
-An element may be any type but `void`, including an **anonymous tuple** —
-`[](i64, string)` — a raw pointer and an anonymous struct (08/08; the first was the gap,
-the other two were missing beside it). It may also carry one allocation or `weak`
-modifier: `[]shared Node`.
+An element may be any type but `void`, including an anonymous tuple (`[](i64, string)`), a raw pointer and an anonymous struct, and may carry one allocation or `weak` modifier: `[]shared Node`.
 
-`xs.push(v)` grows a dynamic array (08/09), amortized doubling. It needed a
-representation change: the elements used to sit *inline* in the ref-counted box, and a
-`[]T` value **is** that box pointer — so growth would move the box and dangle every
-alias, which is a use-after-free rather than a semantics choice, since aliasing is
-observable (`let b = a; a[0] = 9` reads through `b`). They now live behind a pointer
-(`{rc, weak, len, cap, T*}`), so the box never moves and every alias sees the push. The
-cost is one extra load per element access, language-wide — what every growable reference
-container pays. `push` mutates in place and returns void, needs a mutable receiver (the
-same rule and diagnostic as `xs[i] = v`), and `noalloc` refuses it.
+`xs.push(v)` grows a dynamic array, amortized doubling. Elements live behind a pointer (`{rc, weak, len, cap, T*}`) rather than inline in the box, so growth cannot move the box and dangle every alias; the cost is one extra load per element access, language-wide. `push` mutates in place, returns void, needs a mutable receiver (the same rule and diagnostic as `xs[i] = v`), and `noalloc` refuses it.
 
-`[v; n]` repeats a value (08/08), in both flavours. Two rules matter:
+`[v; n]` repeats a value, in both flavours. Two rules matter:
 
-- **The value is evaluated once**, so `[next(); 3]` is one call. Each of the n slots is
-  then an owner, so a managed element takes n-1 extra retains — the array literal
-  `[s, s, s]` needs none of that, because it lowers three separate uses.
-- **The count is a compile-time constant by construction**: the grammar admits a number
-  literal or a `const_identifier` there and nothing else, so `[0; n]` for a runtime `n`
-  is a syntax error. The size is part of the type, and a type cannot depend on a value
-  the compiler has not got. `const M = N * 2` works — const chains fold.
+- **The value is evaluated once**, so `[next(); 3]` is one call. Each slot is then an owner, so a managed element takes n-1 extra retains — the literal `[s, s, s]` needs none of that, lowering three separate uses.
+- **The count is a compile-time constant only where the type needs one.** A fixed `[N]T` carries its size in its type, so it must fold (`const M = N * 2` works — const chains fold); a `[]T` carries its length at run time and accepts any expression.
 
-Evaluating once is also the form's one trap, and `lyra-W019` names it (08/18):
-`[[' '; WIDTH]; HEIGHT]` is **one** row referenced HEIGHT times, so every
-`grid[py][px] = c` writes the same place and every row prints identically — a plausible
-image rather than an error, which is how it survived two other bugs in
-`examples/mandelbrot.lyra`. The semantics are right and did not change; what was missing
-is that nothing said so, since "n copies" reads as "n *independent* copies" to almost
-everyone. A **warning**, because the code is correct and a deliberate alias is a real
-thing to want.
+Evaluating once is also the form's one trap, and **`lyra-W019`** names it: `[[' '; WIDTH]; HEIGHT]` is **one** row referenced HEIGHT times, so every `grid[py][px] = c` writes the same place and every row prints identically — a plausible image rather than an error. A **warning**, because the code is correct and a deliberate alias is a real thing to want.
 
-The predicate is narrower than "managed" and each rung of it was measured: a `[]T`, a
-`shared` aggregate with a writable field, or any struct/tuple/`data`/`[N]T` containing one.
-A string is managed and *immutable*, so `["hi"; 3]` — correct code and the commoner
-spelling by far — stays silent. Two answers came out against the guess: `readonly` does
-not stop the sharing (it blocks the direct write, not `let mut c = fs[0].cells` then
-`c[0] = 7`), and a `shared` **scalar** does not share, since assigning to the binding
-rebinds it rather than writing the box. `examples/life.lyra` — Conway's Game of Life,
-toroidal, sized to the window — is the program written to walk into the shape.
+The predicate is narrower than "managed": a `[]T`, a `shared` aggregate with a writable field, or any struct/tuple/`data`/`[N]T` containing one. A string is managed and *immutable*, so `["hi"; 3]` stays silent. Two rules that surprise: `readonly` does not stop the sharing (it blocks the direct write, not `let mut c = fs[0].cells` then `c[0] = 7`), and a `shared` **scalar** does not share, since assigning to the binding rebinds it rather than writing the box. `examples/life.lyra` is the program written to walk into the shape.
 
 ## Ranges
 
-Four end operators, two axes: `..<` `..<=` ascend, `..>` `..>=` descend; `..<` `..>` exclude
-the end bound, `..<=` `..>=` include it. An optional step follows a colon (`0..<10:2`) and is
-a **magnitude** — a negative step is an error, because the operator already says which way
-the range runs. A step of zero or less that is only knowable at **run time** traps
-(`lyra: range step must be positive`) rather than spinning — the shift-amount ladder:
-provable → compile error, otherwise → trap. A comprehension over the same degenerate step
-yields an empty array instead, since its count is computed up front.
+Four end operators, two axes: `..<` `..<=` ascend, `..>` `..>=` descend; `..<` `..>` exclude the end bound, `..<=` `..>=` include it. An optional step follows a colon (`0..<10:2`) and is a **magnitude** — a negative step is an error, because the operator already says which way the range runs. A step of zero or less that is only knowable at **run time** traps (`lyra: range step must be positive`) rather than spinning: provable → compile error, otherwise → trap. A comprehension over the same degenerate step yields an empty array instead, since its count is computed up front.
 
-A `for-in` range **terminates at the type's edge** (08/12): the advance is guarded, so
-`0..<=hi` with `hi` at the counter type's max visits the max and exits instead of wrapping
-past it and looping forever, and a large step cannot leap an exclusive end back into range.
+A `for-in` range **terminates at the type's edge**: the advance is guarded, so `0..<=hi` with `hi` at the counter type's max visits the max and exits instead of wrapping, and a large step cannot leap an exclusive end back into range.
 
-**Direction is the operator's, never the bounds'.** `5..<1` is an ascending range that
-happens to be empty, not a descending one. That keeps direction a parse-time fact, so a
-range over variables cannot run the opposite way from the way it reads. The inclusive end
-was spelled `..=` until 08/04; it became `..<=` so both directions read identically.
+**Direction is the operator's, never the bounds'.** `5..<1` is an ascending range that happens to be empty, not a descending one — which keeps direction a parse-time fact, so a range over variables cannot run the opposite way from the way it reads.
 
-Descending is meaningful only where a range is *iterated*. As a match pattern or a `newtype`
-constraint a range is a **set**, which has no direction, and `..>`/`..>=` there are
-`lyra-E034`.
+Descending is meaningful only where a range is *iterated*. As a match pattern or a `newtype` constraint a range is a **set**, which has no direction, and `..>`/`..>=` there are `lyra-E034`.
 
 ## Newtypes
 
-`newtype` gives **nominal identity to a structural type**: `newtype Meters = f64` is not
-interchangeable with other f64s. As of 08/07 the base must actually be structural —
-`lyra-E041` refuses a `struct`, a `data` type, a named tuple, and an *anonymous* tuple.
+`newtype` gives **nominal identity to a structural type**: `newtype Meters = f64` is not interchangeable with other f64s. The base must actually be structural — `lyra-E041` refuses a `struct`, a `data` type, a named tuple and an *anonymous* tuple, since all four already have identity (`tuple Rgb(u8, u8, u8)` is what the message tells you to write instead). Scalars, `string`, arrays, raw pointers and function types all work.
 
-The first three already have identity, so wrapping one buys a second name and nothing else;
-the implementation had agreed all along, since a struct base could not be constructed by any
-spelling and a data base crashed the backend. The anonymous tuple is refused for a sharper
-reason: `tuple Rgb(u8, u8, u8)` already names a product, and the two differ only in whether
-the name is a **constructor** (`let c: Rgb = (1, 2, 3)` is rejected for the named tuple,
-`Rgb(1, 2, 3)` for the newtype) — so the message shows the `tuple` line to write. Scalars,
-`string`, arrays, raw pointers and function types keep working: nothing else names them,
-and `struct Matrix { cells: [16]f64 }` is a wrapper with a field, not an alias.
+**A newtype has a constructor, and a typed value must use it.** `Cents(150)` — and the juxtaposed `Cents 150`, which the collector erases into the same node — is a compile-time assertion about which type a value has, not a wrapper: it lowers to its operand and nothing else. A generic newtype constructs by call too (`Boxed(5)` is `Boxed<i64>`; an untyped operand promotes to its default, and `Boxed::<u8>(200)` binds explicitly). Malformed forms are `lyra-E044`.
 
-**A newtype has a constructor, and a typed value must use it** (08/12). `Cents(150)` —
-and the juxtaposed `Cents 150`, which the collector erases into the same node — is a
-compile-time assertion about which type a value has, not a wrapper: it lowers to its
-operand and nothing else. A *generic* newtype constructs by call too: `Boxed(5)` is
-`Boxed<i64>` (the named-tuple solver; an untyped operand promotes to its default, and
-`Boxed(u8(7))` says otherwise), with `Boxed::<u8>(200)` binding the parameters
-explicitly. Malformed forms are `lyra-E044` (wrong operand count, an operand the base
-cannot hold, a parameter the operand cannot solve).
+**An untyped literal converts implicitly; a typed value does not** (`lyra-E046`). `let c: Cents = 150` and `let xs: []Percent = [10, 20]` are fine; `take(plain_i64)` against `(c: Cents)` is an error, and `Cents(x)` is how it is said. The line is provenance: a literal has no unit yet, a typed value came from somewhere.
 
-**An untyped literal converts implicitly; a typed value does not** (`lyra-E046`):
-`let c: Cents = 150` and `let xs: []Percent = [10, 20]` are fine, `take(plain_i64)`
-against `(c: Cents)` is an error, and `Cents(x)` is how it is said. The line is
-provenance — a literal has no unit yet, a typed value came from somewhere, and that is
-where a unit mixup lives. It is Ada's rule for derived types, **in both directions**
-(`lyra-E047`, same day): reading out needs the base's name applied — `i64(c)`,
-`string(e)`, `bool(f)` — the constructor's mirror and an identity at runtime just as
-the constructor is. `string(...)`/`bool(...)` exist solely as that spelling
-(identity-only: no stringification, no truthiness); conversions look through a newtype
-on their operand, so `u8(cents)` behaves exactly as `u8(plain_i64)`. The one
-asymmetry: a newtype over a base the conversion cannot *name* — an array, a function
-type — keeps its implicit read-out, since refusing with no spelling to offer would
-make it write-only.
+**Reading out needs the base's name applied** (`lyra-E047`) — `i64(c)`, `string(e)`, `bool(f)`, an identity at runtime just as the constructor is. `string(...)`/`bool(...)` exist solely as that spelling: no stringification, no truthiness. Conversions look *through* a newtype on their operand, so `u8(cents)` behaves exactly as `u8(plain_i64)`. One asymmetry: a newtype over a base a conversion cannot *name* — an array, a function type — keeps its implicit read-out, since refusing with no spelling to offer would make it write-only.
 
-**Constraints are checked wherever the newtype flows** — annotation, argument, return,
-array element — not only at a binding, and through the constructor too, so
-`Percent(150)` and `let p: Percent = 150` report alike (`lyra-E023`). `values(...)` is
-enforced as of 08/12 (`lyra-E045`); `step(...)` still is not.
+**Constraints are checked wherever the newtype flows** — annotation, argument, return, array element — and through the constructor, so `Percent(150)` and `let p: Percent = 150` report alike (`lyra-E023`). `values(...)` is `lyra-E045`. `step(...)` measures from the range's start, so `range(5..<=95), step(10)` accepts 15 and refuses 10 (`lyra-E053`).
 
-**A constraint is checked at run time too** (08/13), so the ladder has both rungs: a
-provable violation is a compile error, and a value the compiler cannot see through is
-**trapped where it is constructed**. `mk(200)` on `let mk = (n: u8) -> Percent =>
-Percent(n)` now exits with `lyra: value violates its newtype's constraint` instead of
-printing 200. The typechecker publishes only the sites it could *not* settle
-statically, so a literal construction costs nothing and a runtime one costs a single
-compare-and-branch — what overflow-checked arithmetic already pays.
+**And at run time too**, so the ladder has both rungs: a provable violation is a compile error, and a value the compiler cannot see through traps where it is constructed (`lyra: value violates its newtype's constraint`). The typechecker publishes only the sites it could not settle statically, so a literal construction costs nothing and a runtime one costs one compare-and-branch.
 
-`step(...)` is a real constraint as of the same day, having been collected and read
-by nothing: the values covered are `start, start+step, …` measured from the range's
-start, so `range(5..<=95), step(10)` accepts 15 and refuses 10 (`lyra-E053`, and the
-matching trap).
+**`pattern(...)` is checked by a DFA compiled at *compile* time** — a constraint's pattern is part of a type, so the runtime needs no regex engine. Flattened tables ship as constants and one shared driver walks them (O(n), no backtracking, no allocation). `lyra-E054` refuses a pattern that cannot become a table: a lookbehind, or a DFA past `regex.MaxTableStates`.
 
-**`pattern(...)` is checked at run time too**, by a DFA compiled from the pattern at
-*compile* time — the runtime still has no regex engine and needs none, because a
-constraint's pattern is part of a type and so is always known while compiling. The
-flattened tables ship as constants and one shared driver walks them (O(n), no
-backtracking, no allocation); a literal is still matched at compile time and emits
-nothing at all. What remains refused (`lyra-E054`) is a pattern that cannot become a
-table — a lookbehind, or a DFA past `regex.MaxTableStates` — which is a property of
-the pattern rather than of the value. A regex as a first-class *value* is still
-`lyra-E052`.
+**A regex literal is only a constraint's argument.** As a *value* (`let re = r"[a-z]+"`) or a *match pattern* it is `lyra-E052`, unimplemented. There is no `regex` type to annotate either — a lowercase type name parses as a type variable, so `(re: regex)` declares one called `regex`.
 
-**A regex literal is only a constraint's argument.** `where pattern(r"…")` works — the
-constraint stores the pattern's source text and compiles it at type-check time — but a
-regex as a *value* (`let re = r"[a-z]+"`) or as a *match pattern* (`match s { r"…" =>
-… }`) is `lyra-E052`, unimplemented: both type-checked clean and died in the backend
-until 08/13. There is no `regex` type to annotate either; a lowercase type name parses
-as a type variable, so `(re: regex)` declares one called `regex`.
+A newtype is **transparent to its base's methods** — `newtype Name = string` supports `len`/`slice`/`trim`, builtins and prelude `self:` functions alike. The fallback is tried after every other rung, so a method written for the newtype still wins.
 
-A newtype is **transparent to its base's methods** — `newtype Name = string` supports
-`len`/`slice`/`trim`, builtins and prelude `self:` functions alike — because a wrapped
-string you can do nothing with is not a trade anyone would take. The fallback is tried
-*after* every other rung, so a method written for the newtype still wins.
-
-**Except the overflow-arithmetic family** (`lyra-E043`, 08/12): `wrapping_*`/
-`saturating_*`/`checked_*` stop at the wrapper, because they are the *operators'* escape
-hatches and arithmetic on a newtype is opt-in — the fallback used to hand out through
-methods the arithmetic the operator rule withholds, and accepted a mixed operand
-(`cents.wrapping_add(plain_i64)`) doing it, since the registry's signatures are
-base-typed. The two paths through are explicit: an operator impl (which **dispatches on a
-scalar newtype** as of the same day — the guard used to newtype-strip its receiver, so
-`impl Add for Cents` was silently inert), or converting to the base (`i64(c)`, the E047
-read-out spelling; only newtype → *other* newtype has no path at all). Float rounding (`floor`/`ceil`/
-`round`) stays transparent — a conversion's alternative, not an operator's. `println(c)`
-on a newtype still refuses; `impl Show for Cents` is the working answer and arguably the
-right one, since print is where transparency would erase the name the newtype carries.
+**Except the overflow-arithmetic family** (`lyra-E043`): `wrapping_*`/`saturating_*`/`checked_*` stop at the wrapper, because they are the *operators'* escape hatches and arithmetic on a newtype is opt-in. Two paths through: an operator impl (`impl Add for Cents` dispatches), or converting to the base (`i64(c)`) — newtype → *other* newtype has no path at all. Float rounding (`floor`/`ceil`/`round`) stays transparent, being a conversion's alternative rather than an operator's. `println(c)` refuses; `impl Show for Cents` is the answer, since print is where transparency would erase the name the newtype carries.
 
 ## Effect Bounds Are Written, Not Inferred
 
-`pure`, `det` and `noalloc` are annotations a caller can rely on, and the compiler infers
-the same facts internally — which is why an unwritten bound is easy to mistake for a
-harmless omission. It is not, and `lyra-W018` (08/17) says so: a top-level function or
-trait-impl method with no observable effect that does not say `pure` is warned about.
+`pure`, `det` and `noalloc` are annotations a caller can rely on, and the compiler infers the same facts internally — which is why an unwritten bound is easy to mistake for a harmless omission. `lyra-W018` reports a top-level function or trait-impl method with no observable effect that does not say `pure`.
 
-**Nothing is refused today.** Purity is inferred whole-program, so a `pure` function may
-call an unannotated one whose body the compiler cleared. The bound costs on the *next*
-edit, and what it decides is **where the blame lands**:
+**Nothing is refused today.** Purity is inferred whole-program, so a `pure` function may call an unannotated one whose body the compiler cleared. The bound costs on the *next* edit, and what it decides is **where the blame lands**:
 
 ```lyra
 let helper = (n: i64) -> i64 => { println("added later"); n * 2 }
 let caller = pure (n: i64) -> i64 => helper(n)
 ```
 
-The `println` is reported at `caller`, because `caller` is the only thing in the program
-that promised anything. Mark `helper` and it is reported at the `println` — at the edit, in
-the function being looked at. So a bound is not documentation of what a body does; it is
-what makes a body's *change* fail where it happened.
+The `println` is reported at `caller`, the only thing in the program that promised anything. Mark `helper` and it is reported at the `println` — at the edit, in the function being looked at.
 
-**Only `pure` is warned about**, and the line is drawn where it is because the other two
-were counted on the same code: `det` fires on roughly a sixth of all functions and
-`noalloc` on two-fifths, with nearly every `det` candidate a terminal-escape wrapper
-(`cursor_hide`, `move_to`) that qualifies only because `det` permits output by design.
-Advice landing on every print helper in a program is advice nobody reads.
+**Only `pure` is warned about.** Measured on the same code, `det` fires on roughly a sixth of all functions and `noalloc` on two-fifths, with nearly every `det` candidate a terminal-escape wrapper that qualifies only because `det` permits output by design. Advice landing on every print helper is advice nobody reads.
 
-An inline closure is never warned about — `(x) => x * 2` inside `xs.map(…)` is an
-expression, not an interface — nor is `main`, which nothing calls, nor an impl method whose
-*trait* already declares the bound, since a trait's bound binds every implementer. There is
-no `#[allow]`-shaped suppression in the language, which is why this is a warning rather than
-an error: an author about to add an effect is entitled to leave the bound off.
-
-The standard library was annotated to land it — 97 impl methods across the prelude, plus
-`std/math` and `std/tui` — at each impl rather than by declaring the traits' methods `pure`,
-which would have been one edit instead of 97 but would have decided that no user's
-`impl Show for MyType` may ever print.
+An inline closure is never warned about — it is an expression, not an interface — nor is `main`, which nothing calls, nor an impl method whose *trait* already declares the bound. There is no `#[allow]`-shaped suppression in the language, which is why this is a warning: an author about to add an effect is entitled to leave the bound off.
 
 ## Operator Overloading
 
-Arithmetic and bitwise operators are overloadable as of 08/07, comparisons are not, and
-the split is the point. `+ - * / % << >> & | ~`, prefix `-` and `~`, and the compound
-assignments dispatch to a trait method named for the operator:
+Arithmetic and bitwise operators are overloadable, comparisons are not, and the split is the point. `+ - * / % << >> & | ~`, prefix `-` and `~`, and the compound assignments dispatch to a trait method named for the operator:
 
 ```
 trait Add { (_+_): (Self, Self) -> Self }
 impl Add for Vec2 { (_+_) = (self, o) => Vec2 { x: self.x + o.x, y: self.y + o.y } }
 ```
 
-**The trait is the author's — the compiler knows no name here.** That is the opposite of
-`Eq`/`Ord`, which *are* the comparison operators: `<` and `<=>` must agree, so one trait
-owns them and `(_==_)` as a method name is `lyra-E039`. Those two are marked
-`@builtin(Ord)`/`@builtin(Eq)` in the prelude (08/08), so the compiler finds them by
-identity rather than by spelling and a program's own `trait Ord` stays an ordinary trait.
-Arithmetic carries no such invariant, so the dispatch key is the method name. Two traits
-providing one operator for one type is an ambiguity, reported at the operator.
+**The trait is the author's — the compiler knows no name here**, so the dispatch key is the method name and two traits providing one operator for one type is an ambiguity, reported at the operator. `Eq`/`Ord` are the opposite: they *are* the comparison operators, `<` and `<=>` must agree, so one trait owns them and `(_==_)` as a method name is `lyra-E039`. Both are marked `@builtin(Ord)`/`@builtin(Eq)` in the prelude, so the compiler finds them by identity rather than by spelling and a program's own `trait Ord` stays an ordinary trait.
 
-**A primitive is never routed through an impl**: `1 + 1` is a machine add whatever a
-program declares — and "primitive" means the receiver unstripped (08/12), so a newtype
-over a scalar *is* routed through its impl (`impl Add for Cents` dispatches, `impl Add
-for i64` is inert). An operator is a call, so `pure`/`det`/`noalloc` charge it as one.
+**A primitive is never routed through an impl**: `1 + 1` is a machine add whatever a program declares. "Primitive" means the receiver *unstripped*, so a newtype over a scalar **is** routed through its impl and `impl Add for i64` is inert. An operator is a call, so `pure`/`det`/`noalloc` charge it as one.
 
-Still inert, each with its own reason in the warning: `&&`/`||` (a call cannot
-short-circuit), `!` (boolean negation, no user truthiness), `**` (a spelling with no
-operator — its mirror `%%` is an operator with no spelling), and the suffix `_++`/`_--`.
-An operand whose type is a *type parameter* resolves through a `where` bound (08/08):
-`let sum<t> where t: Add = (a: t, b: t) -> t => a + b`, the same abstract dispatch a bound
-`.method()` call takes.
+Still inert, each with its own reason in the warning: `&&`/`||` (a call cannot short-circuit), `!` (boolean negation, no user truthiness), `**` (a spelling with no operator — its mirror `%%` is an operator with no spelling), and the suffix `_++`/`_--`.
 
-## Parentheses and Constructor Calls in Operator Position
+An operand whose type is a *type parameter* resolves through a `where` bound — `let sum<t> where t: Add = (a: t, b: t) -> t => a + b` — the same abstract dispatch a bound `.method()` call takes.
 
-Two forms that did not parse until 08/07, and that operator overloading made ordinary:
-`Cents(150) + Cents(275)` (a constructor call as a math operand) and `(a + b).x` (a
-parenthesized binary expression as a postfix head — `(1 + 2).wrapping_add(3)` failed the
-same way, so it predated overloading).
-
-Neither was about operators; both were about how many ways a node could be derived. A
-constructor call is a `tuple_literal`, which arithmetic never reached; a parenthesized
-*binary* expression is a `group`, which only arithmetic reached. Both were fixed by giving
-each node exactly **one** path, which made the parser *smaller* (7730 → 7711 states) —
-adding a second derivation instead is an unresolved reduce-reduce at every operand
-position, which is the same partition rule that governs `_literal` vs `_primary_expr`.
+`Cents(150) + Cents(275)` (a constructor call as a math operand) and `(a + b).x` (a parenthesized binary expression as a postfix head) both parse. Each node has exactly **one** derivation path; adding a second is an unresolved reduce-reduce at every operand position — see the grammar repo's partition rule.
 
 ## Supertraits
 
-`trait B: A` means two things, and both hold as of 08/14: **every implementer of `B` must
-implement `A`** (`lyra-E040`, checked at each `impl`), and **a `where t: B` bound reaches
-`A`'s methods** — `v.foo()` resolves, and `v` satisfies a callee bounded `where u: A`.
+`trait B: A` means two things, and both hold: **every implementer of `B` must implement `A`** (`lyra-E040`, checked at each `impl`), and **a `where t: B` bound reaches `A`'s methods** — `v.foo()` resolves, and `v` satisfies a callee bounded `where u: A`.
 
-The second half is what a supertrait is *for*, and it was missing for a week while the
-first was enforced: the language promised a thing exists and gave the one place that needs
-it no way to reach it. The forwarding diagnostic even asked for a `where u: A` that `B`
-already guarantees.
+A **cycle is legal** — `trait A: B` alongside `trait B: A` — and says the two are always implemented together, which is exactly what the obligation then requires of every implementer.
 
-A **cycle is legal** — `trait A: B` alongside `trait B: A` — and says the two are always
-implemented together, which is exactly what the obligation then requires of every
-implementer.
-
-The shape that motivates the feature is an **umbrella** trait — one with no methods of its
-own, naming a bundle:
+The shape that motivates the feature is an **umbrella** trait, one with no methods of its own:
 
 ```lyra
 trait Arithmetic: Add + Sub + Mul + Div      // or `… { }`; the body is optional
@@ -405,399 +213,151 @@ impl Arithmetic for Vec2
 let combine<t> where t: Arithmetic = (a: t, b: t) -> t => a * b + a
 ```
 
-That needed a grammar change on the same day: a trait's body is optional, braces and all.
-A member list was deliberately non-empty — correct while a method-less trait meant nothing,
-and supertraits are exactly what stopped that being true. The bodiless spelling is the one to
-reach for, since there is no body to delimit; Rust needs its `{}` only because it has no
-statement terminator to end the declaration.
-
-The umbrella's impl is still required and still checked: `impl Arithmetic for Vec2` is
-what triggers the obligation, so a type missing `Mul` is refused there rather than at the
-call.
+A trait's body is optional, braces and all; the bodiless spelling is the one to reach for, since there is no body to delimit. The umbrella's impl is still required and still checked: `impl Arithmetic for Vec2` is what triggers the obligation, so a type missing `Mul` is refused there rather than at the call.
 
 ## Calling on a Receiver
 
-Two related features, both 08/03, both opted into by naming a function's first parameter
-`self` — and easier to keep straight as one idea in two halves:
+Two related features, both opted into by naming a function's first parameter `self`:
 
-- **UFCS** (call side): `m.unwrap_or(0)` resolves to the free function `unwrap_or(m, 0)`.
-  The call is rewritten to pass the receiver as argument 0 before anything downstream sees
-  it, so nothing after the typechecker knows UFCS exists. An `own` receiver is refused, so a
-  move always looks like a call; calling into another module method-style needs an import.
-- **Receiver-keyed overloading** (declaration side): a module may declare one name several
-  times when each declaration takes a `self` receiver and their receiver *type heads* differ
-  — `Maybe<t>` beside `Result<t,e>` is allowed, a second `Maybe<…>` is refused where it is
-  written, since ranking two matching candidates would need a specificity ordering the
-  language does not have. The prelude uses it for `unwrap_or`/`unwrap_or_else`.
+- **UFCS** (call side): `m.unwrap_or(0)` resolves to the free function `unwrap_or(m, 0)`. The call is rewritten to pass the receiver as argument 0 before anything downstream sees it, so nothing after the typechecker knows UFCS exists. An `own` receiver is refused, so a move always looks like a call; calling into another module method-style needs an import.
+- **Receiver-keyed overloading** (declaration side): a module may declare one name several times when each declaration takes a `self` receiver and their receiver *type heads* differ — `Maybe<t>` beside `Result<t,e>` is allowed, a second `Maybe<…>` is refused where it is written, since ranking two matching candidates would need a specificity ordering the language does not have. The prelude uses it for `unwrap_or`/`unwrap_or_else`.
 
-Without the second, `Maybe` and `Result` could each be *called* with `map` but only one of
-them could have a `map` *written* in a given module — which is why the standard library used
-to split `std.maybe` from `std.result`. Details and the reasoning are in
-`lyra/pkg/analyzer/typechecker/README.md`; a name still may not be exported by two modules
-at once (`lyra/todo.md`, Modules).
+Without the second, `Maybe` and `Result` could each be *called* with `map` but only one of them could have a `map` *written* in a given module. Details in `lyra/pkg/analyzer/typechecker/README.md`; a name still may not be exported by two modules at once (`lyra/todo.md`, Modules).
 
 ## Show
 
-`print` and `"${…}"` pick a formatter per *concrete* type, so a value whose type is a
-**type parameter** could not be rendered at all. A `where t: Show` bound fixes that
-(08/08):
+`print` and `"${…}"` pick a formatter per *concrete* type, so a value whose type is a **type parameter** could not be rendered at all. A `where t: Show` bound fixes that:
 
 ```
 let describe<t> where t: Show = (v: t) -> string => "value ${v}"
 ```
 
-The trait and an impl for every printable scalar are **ordinary Lyra** in
-`std/prelude/show.lyra` — `"${self}"` on a concrete primitive is the formatter `print`
-already picks, so nothing here is a builtin. The compiler's half is a desugar: the operand
-is rewritten to `v.show()`, which is the bound dispatch that already existed.
+The trait and an impl for every printable scalar are **ordinary Lyra** in `std/prelude/show.lyra` — `"${self}"` on a concrete primitive is the formatter `print` already picks, so nothing here is a builtin. The compiler's half is a desugar: the operand is rewritten to `v.show()`, the bound dispatch that already existed.
 
-**The trait is recognized by its method, not its name** — any in-scope bound declaring
-`show` will do, so a program may define its own. `Show` is what the *diagnostic* suggests,
-because it is the one the prelude ships.
+**The trait is recognized by its method, not its name** — any in-scope bound declaring `show` will do, so a program may define its own. `Show` is what the *diagnostic* suggests, because it is what the prelude ships.
 
-A **concrete** type with a `show` impl prints the same way (`println(pt)`, `"${pt}"`). Two
-rules keep that safe: a printable primitive always takes the built-in formatter, and the
-rewrite never targets the method it is inside — `impl Show for Pt { show = (self) =>
-"${self}" }` is refused rather than compiled into infinite recursion.
+A **concrete** type with a `show` impl prints the same way. Two rules keep that safe: a printable primitive always takes the built-in formatter, and the rewrite never targets the method it is inside — `impl Show for Pt { show = (self) => "${self}" }` is refused rather than compiled into infinite recursion.
 
 ## Documentation Comments
 
-`///` documents the declaration below it; `//!` documents the module the file belongs
-to (08/13). The body is **Markdown**, with no `@param`/`@returns` tags — the signature
-is already in the AST, so a tag restating it is a second copy that goes stale, and the
-one thing it could add (prose about a parameter) is a sentence.
+`///` documents the declaration below it; `//!` documents the module the file belongs to. The body is **Markdown**, with no `@param`/`@returns` tags — the signature is already in the AST, so a tag restating it is a second copy that goes stale.
 
-Three headings are **recognized** — `# Examples`, `# Panics`, `# Errors`, matched
-case-insensitively and in the singular — so a renderer can give them a house style and a
-generator can index every `# Panics` in the standard library. An unrecognized heading is
-still a heading; it is simply not classified. `# Panics` and `# Errors` are separate
-because the split is the language's own: a trap ends the program, an `Err` is a value
-the caller handles. A heading inside a fenced code block is not a heading.
+Three headings are **recognized**, matched case-insensitively and in the singular: `# Examples`, `# Panics`, `# Errors`. A renderer gives them a house style and a generator can index every `# Panics` in the standard library. An unrecognized heading is still a heading, simply not classified; `# Panics` and `# Errors` are separate because the split is the language's own (a trap ends the program, an `Err` is a value the caller handles). A heading inside a fenced code block is not a heading.
 
-**Six things carry documentation**, and they are exactly the declarations: a top-level
-`let`/`var`/`const`, a `type`, a `trait`, an `impl`, and — as members — a struct's
-fields, a data type's constructors, a trait's method signatures, and an impl's methods.
-Nothing else does. **Documentation attaches to declarations, not to types**: a field's
-doc lives on the `struct` declaration that names it (`TypeDeclStmt.MemberDocs`), never
-on `types.StructField`, so an *anonymous* struct's field cannot carry one and two
-structurally identical types stay structurally equal.
+**Six things carry documentation**, and they are exactly the declarations: a top-level `let`/`var`/`const`, a `type`, a `trait`, an `impl`, and — as members — a struct's fields, a data type's constructors, a trait's method signatures and an impl's methods. Nothing else does.
 
-**Attachment is adjacency, and a doc that attaches to nothing warns** (`lyra-W017`) —
-a blank line between the block and the declaration, a `///` at end of file, one on a
-local `let`, a `//!` after the first declaration. A blank line is the only signal an
-author has for "this is about the file, not the next declaration", and attaching across
-one would make the last comment in a file silently become the documentation of whatever
-is appended after it. A warning rather than an error, because a doc block above a
-temporarily commented-out declaration is an ordinary state to be in for a minute.
+**Documentation attaches to declarations, not to types.** A field's doc lives on the `struct` declaration that names it (`TypeDeclStmt.MemberDocs`), never on `types.StructField` — so an anonymous struct's field cannot carry one, and two structurally identical types stay structurally equal.
 
-**`//!` rather than a `///` above the `module` line**, because a module is a file *or a
-directory*: a directory module has no single header to sit above, and each of its files
-may say something about the module they join. It may sit at the top of the file **or
-directly under the `module` line** — the line naming the module is the obvious thing for
-its documentation to follow, and only Rust's lack of a module header makes top-of-file
-the sole spelling elsewhere. Several files' headers are joined in file order, keyed by
-module path on the symbol table (`SymbolTable.ModuleDocs`); the module's *summary* is
-therefore the first file's, which for the prelude means whichever file sorts first.
+**Attachment is adjacency, and a doc that attaches to nothing warns** (`lyra-W017`): a blank line between the block and the declaration, a `///` at end of file, one on a local `let`, a `//!` after the first declaration. A blank line is the only signal an author has for "this is about the file, not the next declaration". A warning rather than an error, because a doc block above a temporarily commented-out declaration is an ordinary state to be in for a minute. The corollary: **an implementation note goes above the doc block, never between it and the declaration**, since an ordinary `//` in between detaches it.
 
-**An implementation note goes above the doc block, never between it and the
-declaration** — attachment is adjacency, so an ordinary `//` in between detaches the
-documentation. It says so (`lyra-W017`) rather than failing silently, which is how the
-one instance of it in the prelude was caught.
+**`//!` rather than a `///` above the `module` line**, because a module is a file *or a directory*: a directory module has no single header to sit above. It may sit at the top of the file or directly under the `module` line. Several files' headers are joined in file order, keyed by module path (`SymbolTable.ModuleDocs`), so the module's summary is the first file's.
 
-**A `////` divider rule is an ordinary comment**, not documentation — which costs the
-grammar a token-precedence rung, since tree-sitter compares precedence before match
-length and `///` would otherwise win on the first three characters of a section rule.
+**A `////` divider rule is an ordinary comment**, not documentation.
 
-Docs surface in LSP hover, under the type, and **`lyrac doc` renders them** — one
-Markdown page per module, with Starlight frontmatter, so the standard library's reference
-page is generated rather than written:
+Docs surface in LSP hover, under the type, and **`lyrac doc` renders them** — one Markdown page per module, with Starlight frontmatter, so the standard library's reference page is generated rather than written:
 
 ```bash
 lyrac doc std/prelude/prelude.lyra -o ../lyra-website/src/content/docs/reference --strict
 ```
 
-`--private` includes unexported declarations, `--deps` follows imports, `--prelude` adds
-the standard library, `--strict` fails on a gap. An undocumented public declaration is
-still listed with its signature — omitting it would make the page misrepresent the
-module's surface — and coverage prints on every run, not only under `--strict`.
+`--private` includes unexported declarations, `--deps` follows imports, `--prelude` adds the standard library, `--strict` fails on a gap. An undocumented public declaration is still listed with its signature — omitting it would make the page misrepresent the module's surface — and coverage prints on every run.
 
-**A signature on a page must parse as Lyra**, which is not free: the compiler's own type
-names are written for diagnostics (`DynamicArray<string>`, `boolean`) and a
-`ParameterizedType` renders as `Maybe` rather than `Maybe<t>`, so `pkg/docgen` renders
-source syntax and a test feeds every generated signature back through the parser.
+**A signature on a page must parse as Lyra**, which is not free: the compiler's own type names are written for diagnostics (`DynamicArray<string>`, `boolean`) and a `ParameterizedType` renders as `Maybe` rather than `Maybe<t>`. `pkg/docgen` renders source syntax, and a test feeds every generated signature back through the parser.
 
 ## Console I/O
 
-Output is `print`/`println`, polymorphic over the printable scalars. **Input is
-`read_line() -> Maybe<string>`** (08/05): one line from stdin, terminator removed (a trailing
-`\r` with it), `None` at EOF.
+Output is `print`/`println`, polymorphic over the printable scalars. **Input is `read_line() -> Maybe<string>`**: one line from stdin, terminator removed (a trailing `\r` with it), `None` at EOF.
 
-`Maybe`, not `string`, because EOF must be distinguishable from a blank line — both are `""`
-otherwise, so the natural read loop never terminates once stdin closes. Its companion
-`parse_i64` (`(self: string) -> Maybe<i64>`, so `line.parse_i64()`) is strict: `None` for a
-blank line, a lone sign, trailing garbage, surrounding whitespace, or a value outside the i64
-range. Out-of-range is a `None` rather than an overflow trap, which it would otherwise be —
-parsing is where a program meets input it did not choose.
+`Maybe`, not `string`, because EOF must be distinguishable from a blank line — both are `""` otherwise, so the natural read loop never terminates once stdin closes. Its companion `parse_i64` (`(self: string) -> Maybe<i64>`, so `line.parse_i64()`) is strict: `None` for a blank line, a lone sign, trailing garbage, surrounding whitespace, or a value outside the i64 range. Out-of-range is a `None` rather than an overflow trap — parsing is where a program meets input it did not choose.
 
-**The division of labour between them is the rule to follow when adding more.** `read_line`
-is a compiler builtin because it *has* to be — the line comes from libc and Lyra has no FFI.
-`parse_i64` is ordinary Lyra in `std/prelude/parse.lyra` because it can be. Anything expressible in
-the language goes in the prelude, where it is readable, testable and replaceable; the builtin
-registry stays whatever is genuinely primitive.
+**The division of labour between them is the rule to follow when adding more.** `read_line` is a compiler builtin because it *has* to be — the line comes from libc and Lyra has no FFI. `parse_i64` is ordinary Lyra in `std/prelude/parse.lyra` because it can be. Anything expressible in the language goes in the prelude; the builtin registry stays whatever is genuinely primitive.
 
 ## The Terminal
 
-Three builtins, and they are the whole of what an interactive TUI needs from the
-compiler (08/15):
+Four builtins, and they are the whole of what an interactive TUI needs from the compiler:
 
-- `set_raw_mode(on: bool)` — echo, line buffering and signal generation off, so a
-  keypress is readable the moment it happens;
+- `set_raw_mode(on: bool)` — echo, line buffering and signal generation off, so a keypress is readable the moment it happens;
 - `read_key() -> Maybe<rune>` — one **code point**, `None` at EOF;
-- `terminal_size() -> (i64, i64)` — **(columns, rows)**, width first.
+- `terminal_size() -> (i64, i64)` — **(columns, rows)**, width first;
+- `wait_for_key_ms(timeout: i64) -> bool` — wait up to `timeout` ms and say whether input is readable.
 
-**Only input needed the compiler.** `\e` and `\x1b` both reach stdout as byte 27, so
-ANSI colour, absolute cursor positioning, clear-screen and the alternate buffer are
-ordinary `print` calls and always were. What no prelude code can fix is that `read_line`
-waits for Enter — that is the terminal's line discipline, and turning it off is a
-syscall. Everything above these three — decoding `\e[A` into "up arrow", colour helpers,
-box drawing, frame diffing — is ordinary Lyra, unwritten, and belongs in `std.tui`; that
-is the `read_line`/`parse_i64` division again.
+**Only input needed the compiler.** `\e` and `\x1b` both reach stdout as byte 27, so ANSI colour, cursor positioning, clear-screen and the alternate buffer are ordinary `print` calls. What no prelude code can fix is that `read_line` waits for Enter — that is the terminal's line discipline, and turning it off is a syscall. Everything above these four (decoding `\e[A` into "up arrow", colour helpers, box drawing, frame diffing) is ordinary Lyra and belongs in `std.tui`.
 
-`read_key` answers a **code point rather than a byte** because `rune` means one
-everywhere else, so a multi-byte character is one key instead of two broken ones. It
-does *not* decode escape sequences: an arrow key arrives as ESC, `[`, `A` in three
-calls, since telling a real ESC press from the start of a sequence needs a timeout,
-a table and a policy for unknown sequences — none of them primitive.
+`read_key` answers a code point rather than a byte, so a multi-byte character is one key instead of two broken ones. It does **not** decode escape sequences: an arrow key arrives as ESC, `[`, `A` in three calls.
 
-**The three do not carry the same effect**, which is the part worth remembering.
-`set_raw_mode` is EffectOutput and so `det`-legal — it changes the world rather than
-reading it, and does so deterministically — while `read_key` and `terminal_size` are
-EffectInput. The size is the surprising one: it reads no input and returns the same pair
-all day, but the window can be resized between two calls, and a viewer that redraws on
-resize depends on exactly that.
+`wait_for_key_ms` exists because `\e` begins every escape sequence, so a decoder must look at what follows — with only a blocking read, a lone Escape waited for the *next* keypress. It also lets a program poll instead of block, which is how a viewer redraws on a resize with no key pressed. **A bool rather than a timed read**: three outcomes (a key arrived, nothing yet, input ended) do not fit a `Maybe<rune>`'s two answers. A closed descriptor reports readable, so the two compose exactly. A negative timeout clamps to zero.
 
-**A fourth builtin, `wait_for_key_ms(timeout: i64) -> bool`** (08/17): wait up to
-`timeout` milliseconds and say whether input is readable. It exists because `\e` begins
-every escape sequence, so a decoder must look at what follows — and with only a blocking
-read a lone Escape waited for the *next* keypress. It also lets a program poll instead of
-blocking, which is how a viewer redraws on a window resize with no key pressed.
+**The four do not carry the same effect.** `set_raw_mode` is EffectOutput and so `det`-legal — it changes the world rather than reading it — while `read_key`, `wait_for_key_ms` and `terminal_size` are EffectInput. The size is the surprising one: it reads no input and returns the same pair all day, but the window can be resized between two calls, and a viewer that redraws on resize depends on exactly that.
 
-**A bool rather than a timed read, by a counting argument.** Three outcomes — a key
-arrived, nothing yet, input ended — do not fit a `Maybe<rune>`'s two answers, and
-conflating "nothing yet" with "ended" is the mistake `read_line`'s `Maybe` exists to avoid.
-Split instead: this says whether there is anything, `read_key` says whether it is a key or
-the end. A closed descriptor reports readable, so the two compose exactly. A negative
-timeout clamps to zero, because `deadline - now()` goes negative naturally and "do not
-wait" is the meaning.
+**The mouse needs no builtin at all**: a terminal reports clicks as escape sequences *on stdin*, so enabling is a `print` and receiving is `read_key`. One constraint falls out of `read_key` answering a code point — it must be **SGR mode** (`\e[?1006h`), whose fields are ASCII digits. Legacy X10 sends three raw bytes, so a column past 95 is a byte ≥ 128, which `read_key` decodes by swallowing the two bytes after it and losing the column and row together.
 
-**The mouse needs no builtin at all** (08/15). A terminal reports clicks as escape
-sequences *on stdin*, so enabling is a `print` and receiving is `read_key` — `std.tui`
-has the whole of it. One constraint falls out of `read_key` answering a code point: it
-must be **SGR mode** (`\e[?1006h`), whose fields are ASCII digits. The legacy X10
-encoding sends three raw bytes, so a column past 95 is a byte ≥ 128 — a UTF-8 lead byte,
-which `read_key` decodes by swallowing the two bytes after it, losing the column and row
-together. That would present as a coordinate bug on wide terminals only.
-
-Neither of the last two can fail into nonsense. `terminal_size` answers 80x24 where
-there is no window, so a piped run still renders; `set_raw_mode` saves the original
-termios on the first enable and restores *that* on disable, rather than handing the
-caller a token to keep safe — a terminal left raw after exit is unusable.
+Neither of the last two can fail into nonsense. `terminal_size` answers 80x24 where there is no window, so a piped run still renders; `set_raw_mode` saves the original termios on the first enable and restores *that* on disable, rather than handing the caller a token to keep safe.
 
 ## Randomness
 
-`random_seed() -> u64` (one word of OS entropy) is the **only** builtin; the generator is
-ordinary Lyra in `std/prelude/rand.lyra`:
+`random_seed() -> u64` (one word of OS entropy) is the **only** builtin; the generator is ordinary Lyra in `std/prelude/rand.lyra`:
 
 - `rng_seeded(seed)` / `rng_from_entropy()` build an `Rng`;
-- `rng.next_u64()`, `rng.below(bound)` (half-open), `rng.between(lo, hi)` (inclusive) draw
-  from one;
-- `random_below(bound)` / `random_between(lo, hi)` are ambient one-liners that seed a fresh
-  generator per call.
+- `rng.next_u64()`, `rng.below(bound)` (half-open), `rng.between(lo, hi)` (inclusive) draw from one;
+- `random_below(bound)` / `random_between(lo, hi)` are ambient one-liners that seed a fresh generator per call.
 
-`below` rejects the top partial bucket rather than taking a modulo, so a draw is unbiased.
-The algorithm is xorshift64*, chosen for legibility — **not** suitable for anything
-security-sensitive, and seeding it from the OS does not change that.
+`below` rejects the top partial bucket rather than taking a modulo, so a draw is unbiased. The algorithm is xorshift64*, chosen for legibility — **not** suitable for anything security-sensitive, and seeding it from the OS does not change that.
 
-**Keeping the seed as the primitive is what lets `det` code use randomness, and no rule
-enforces it — it falls out of effect inference.** A seeded generator only mutates its own
-receiver (`EffectMut`, which `det` permits), so a seeded draw is reproducible and `det`-legal;
-`rng_from_entropy`/`random_below` reach `random_seed`, so inference gives them `EffectRand`
-and `det` refuses them. Asking for a seed you were not given is the non-deterministic act, and
-that is the one place the bit is charged.
-
-`Random.global()` was an effect-table entry naming nothing (no signature, no lowering — it
-type-checked and crashed the backend); it is gone.
+**Keeping the seed as the primitive is what lets `det` code use randomness, and no rule enforces it — it falls out of effect inference.** A seeded generator only mutates its own receiver (`EffectMut`, which `det` permits), so a seeded draw is reproducible and `det`-legal; `rng_from_entropy`/`random_below` reach `random_seed`, so inference gives them `EffectRand` and `det` refuses them. Asking for a seed you were not given is the non-deterministic act, and that is the one place the bit is charged.
 
 ## Float Math and Formatting
 
-Rounding is `floor`/`ceil`/`round`, each answering an **i64** — they are the escape hatch
-the lossy-conversion error points to, since `i64(x)` on a float is refused. An out-of-range
-result **traps** (08/14): `fptosi` is poison rather than saturating in LLVM, so
-`(1.0e20).floor()` used to answer 0 under one optimization level and `i64::MIN` under
-another. A NaN traps on the same edge.
+Rounding is `floor`/`ceil`/`round`, each answering an **i64** — they are the escape hatch the lossy-conversion error points to, since `i64(x)` on a float is refused. An out-of-range result **traps**: `fptosi` is poison rather than saturating in LLVM, so `(1.0e20).floor()` would otherwise answer 0 under one optimization level and `i64::MIN` under another. A NaN traps on the same edge.
 
-`log` (natural), `log2`, `log10` and `sqrt` each answer the receiver's **own** width.
-They are builtins on the `random_seed` rule rather than the `parse_i64` one — none is
-expressible in the language, having no series, no table and no FFI to reach libm. The three
-logarithms ship together because smooth mandelbrot coloring is `n + 1 - log2(log(|z|))`,
-and because the trio makes the bare name's base unambiguous by contrast: `log` is the one
-with no subscript. Outside their domains they answer IEEE's value — `log(0)` is `-inf`,
-`log(-1)` and `sqrt(-1)` are NaN — the same choice float division makes; the trap comes
-later, at the integer conversion, and in one place.
+`log` (natural), `log2`, `log10` and `sqrt` each answer the receiver's **own** width. They are builtins on the `random_seed` rule rather than the `parse_i64` one — none is expressible in the language, having no series, no table and no FFI to reach libm. The three logarithms ship together because smooth mandelbrot coloring is `n + 1 - log2(log(|z|))`, and because the trio makes the bare name's base unambiguous by contrast. Outside their domains they answer IEEE's value — `log(0)` is `-inf`, `log(-1)` and `sqrt(-1)` are NaN — the same choice float division makes; the trap comes later, at the integer conversion, and in one place.
 
-**`to_fixed(places)` is the precision knob `print` deliberately lacks** (ordinary Lyra, in
-`std/prelude/format.lyra`). The built-in formatter writes the shortest rendering that reads
-back as the same value, which is right for inspecting a number and wrong for a column of
-them — `1.0 / 3.0` prints seventeen digits, and a small magnitude switches to scientific
-notation. `zoom.to_fixed(4)` is `0.3333` and never switches notation.
+**`to_fixed(places)` is the precision knob `print` deliberately lacks** (ordinary Lyra, in `std/prelude/format.lyra`). The built-in formatter writes the shortest rendering that reads back as the same value, which is right for inspecting a number and wrong for a column of them — `1.0 / 3.0` prints seventeen digits, and a small magnitude switches to scientific notation. `zoom.to_fixed(4)` is `0.3333` and never switches notation.
 
 ## The Clock
 
-`wall_clock_nanos() -> i64` (08/06) is `clock_gettime(CLOCK_REALTIME, …)` and nothing else —
-the same rule randomness follows, so seconds, elapsed durations and formatting are left to
-the prelude. Signed, because the useful operation on two instants is subtraction; the unit is
-in the name because a clock returning a bare number invites a guess that fails silently.
+`wall_clock_nanos() -> i64` is `clock_gettime(CLOCK_REALTIME, …)` and nothing else — the same rule randomness follows, so seconds, elapsed durations and formatting are left to the prelude. Signed, because the useful operation on two instants is subtraction; the unit is in the name because a clock returning a bare number invites a guess that fails silently.
 
-It replaced `wallClock`, the last effect-table entry naming nothing — the `Random.global()`
-shape, still in place. **Implemented rather than deleted**, since deleting would have left
-`EffectTime` a bit nothing in the language could set. Ambient reads carry that bit, so
-`pure`/`det` refuse them; a timestamp threaded in as a parameter is ordinary data, which is
-the same split that lets `det` code use a seeded `Rng`.
+Ambient reads carry `EffectTime`, so `pure`/`det` refuse them; a timestamp threaded in as a parameter is ordinary data, which is the same split that lets `det` code use a seeded `Rng`.
 
 ## Strings
 
-UTF-8, an immutable `{ptr, byte_len, rune_count}` fat pointer. Everything the *language*
-exposes is **rune-indexed**; the byte length is the representation's.
+UTF-8, an immutable `{ptr, byte_len, rune_count}` fat pointer. Everything the *language* exposes is **rune-indexed**; the byte length is the representation's.
 
-`s[i]` is the i-th code point (O(i)), `for c in s` walks code points, and `s.len()` is the
-rune count — **O(1)** as of 08/12, a field read of the count the fat pointer carries,
-maintained arithmetically at each construction (a literal counts at compile time, `++`
-adds, `slice` subtracts its rune bounds; only read_line and interpolation's formatted
-segments pay one linear `lyra_utf8_count` pass over bytes they just produced). `len`
-counts runes because the *index* does — a byte length would silently disagree with `s[i]`
-on the first non-ASCII input — and the **indexed traversal is `for i, c in s`** (08/12):
-rune index and rune from one linear walk, the array convention. That form exists because
-the loop the old docs held up, `for i in 0..<s.len() { s[i] }`, decodes from the start at
-every `s[i]` — O(n²), the trap the prelude itself once fell into writing `starts_with` —
-and was the audit's last standing tension: the defense of rune-count len endorsed an
-idiom the design's own performance model condemned. `s.slice(start, end)` is a half-open
-rune range.
+`s[i]` is the i-th code point (O(i)), `for c in s` walks code points, and `s.len()` is the rune count — **O(1)**, a field read maintained arithmetically at each construction (a literal counts at compile time, `++` adds, `slice` subtracts; only `read_line` and interpolation's formatted segments pay a linear `lyra_utf8_count`). `len` counts runes because the *index* does: a byte length would silently disagree with `s[i]` on the first non-ASCII input.
 
-**A negative index traps, and `from_end(k)` is the end-relative accessor** (08/12) — on
-strings and arrays alike, 1-based: `s.from_end(1)` is the last rune, `xs.from_end(2)` the
-second-to-last element. A negative index counted from the end from 08/08 until then, and
-the audit called that the design's sharpest self-contradiction: in the language whose
-thesis is trap-over-silently-wrong, the most common off-by-one — an index underflowing past
-zero — got a *valid read of the wrong element*. A provable negative (a literal, a folded
-constant) is a compile error naming the from_end spelling; a runtime one is caught by the
-same single unsigned bounds compare as everything else, and the value-range pass got
-*sharper* (any provably-negative index is now definite lyra-E022). The performance that
-justified the old spelling lives in the accessor unchanged — on a string it is the same
-backward byte walk, skipping continuation bytes with no decoding (re-measured after the
-change: 2 µs against 6082 µs per 2000 last-rune reads) — and `slice`'s negative bounds went
-with it (`s.slice(1, s.len() - 1)` is the same complexity class, since slice already walks
-and copies), as did `byte_offset`'s (a negative position is `None`, matching `index`'s
-negative offset). The end position `s[n]` is still not an index — though `slice(n, n)` is
-the empty string, since an exclusive end may name it.
+**The indexed traversal is `for i, c in s`** — rune index and rune from one linear walk. `for i in 0..<s.len() { s[i] }` decodes from the start at every `s[i]`, which is O(n²) and a trap the prelude itself once fell into.
 
-`slice` **allocates** — it copies into a fresh ref-counted box rather than borrowing its
-parent's bytes, because a box's header sits at its start and a pointer into the middle
-cannot reach it — so `noalloc` refuses it, and refuses `trim` with it.
-`trim`/`trim_start`/`trim_end` are ordinary Lyra in `std/prelude/strings.lyra`, trimming the five
-ASCII whitespace characters and not Unicode's full set (which needs a table that belongs in
-a real Unicode library).
+`s.slice(start, end)` is a half-open rune range. It **allocates**, copying into a fresh ref-counted box rather than borrowing its parent's bytes — a box's header sits at its start, so a pointer into the middle cannot reach it — and `noalloc` therefore refuses `slice`, and `trim` with it. `trim`/`trim_start`/`trim_end` are ordinary Lyra in `std/prelude/strings.lyra` and trim the five ASCII whitespace characters, not Unicode's full set.
 
-`starts_with`/`ends_with` landed 08/08, and they are **byte-level** — one line each over a
-new pair of builtins, `s.byte_len()` (O(1), the fat pointer's field) and
-`s.compare_bytes_at(offset, other)` (memcmp at a byte offset, comparing exactly `other`'s
-length, so `== 0` is a prefix test). That is not an approximation: UTF-8 is prefix-free and
-self-synchronizing, so a byte-prefix is exactly a rune-prefix and a byte-suffix exactly a
-rune-suffix — the property `impl Ord for string` already leans on. Both are `pure noalloc`.
+**A negative index traps; `from_end(k)` is the end-relative accessor** — strings and arrays alike, 1-based: `s.from_end(1)` is the last rune, `xs.from_end(2)` the second-to-last element. A provable negative (a literal, a folded constant) is `lyra-E022`, naming the from_end spelling; a runtime one is caught by the same unsigned bounds compare as everything else. On a string it is a backward byte walk skipping continuation bytes with no decoding. `slice` takes no negative bounds either, and `byte_offset`'s negative position is `None`. The end position `s[n]` is not an index, though `slice(n, n)` is the empty string.
 
-**The rune-indexed version was the obvious one and was quadratic.** `s[i]` is O(i), so a
-prefix test was O(m²) and a suffix test O(n·m), and both paid an O(n) `len()` before
-comparing anything — `s.starts_with("--")` on a 2000-rune string decoded all 2000 runes to
-answer a question about two bytes, the length calls alone measuring 99.7% of the cost.
-Building on `slice` instead fixes the quadratic term but allocates and is still O(n).
-Measured: 19.9 ms → 19 µs.
+`starts_with`/`ends_with` are **byte-level** — one line each over `s.byte_len()` (O(1)) and `s.compare_bytes_at(offset, other)` (memcmp at a byte offset, comparing exactly `other`'s length, so `== 0` is a prefix test). Not an approximation: UTF-8 is prefix-free and self-synchronizing, so a byte-prefix is exactly a rune-prefix. Both are `pure noalloc`. The rune-indexed version was quadratic — 19.9 ms against 19 µs for a 2000-rune haystack.
 
-`index`/`contains` landed the same day. `index(needle, offset = 0) -> Maybe<i64>` is a naive
-scan over `compare_bytes_at`, with both `offset` and the result in **rune** indices so the
-answer feeds straight into `slice` — the scan is byte-level, reconciled by carrying a byte
-cursor alongside the rune counter. Naive rather than Rabin–Karp on purpose: RK trades a libc
-memcmp for byte-at-a-time arithmetic in Lyra and buys only an *expected* bound, its worst case
-being O(n·m) too; a real guarantee wants a `memmem` builtin.
+`index(needle, offset = 0) -> Maybe<i64>` is a naive scan over `compare_bytes_at`, with `offset` and the result in **rune** indices so the answer feeds straight into `slice` (the scan is byte-level, reconciled by carrying a byte cursor alongside the rune counter). Naive rather than Rabin–Karp deliberately: RK buys only an *expected* bound, and a real guarantee wants a `memmem` builtin.
 
-`split` landed 08/09, once `push` gave it an output. `index`/`contains`/`split` are all
-**generic over the needle** — `pub trait Needle`, whose `found_at` reports a match as a
-`(Index, Length)` span (`pub type` aliases of `i64`), implemented for `rune` and `string`
-and open to user types. The span, not a fixed step, is what a variable-length needle will
-need, and `"a::b::c".split("::")` is the case a fixed step gets wrong. `split` on an
-**empty separator traps**, naming the fix — `to_runes() -> []rune` is the explicit
-spelling of "split into characters" — on `slice`'s inverted-range reasoning: a caller bug,
-not a None-shaped answer, and a rune separator cannot even be empty.
+`index`/`contains`/`split` are **generic over the needle** — `pub trait Needle`, whose `found_at` reports a match as a `(Index, Length)` span (`pub type` aliases of `i64`), implemented for `rune` and `string` and open to user types. A span rather than a fixed step is what `"a::b::c".split("::")` needs. `split` on an **empty separator traps**, naming the fix: `to_runes() -> []rune`.
 
-`s.byte_offset(i) -> Maybe<i64>` (08/08) completes the byte-level set: the rune→byte
-conversion, which nothing else in the language can perform. It is what makes "does `sep`
-occur at rune i" allocation-free —
-`s.compare_bytes_at(s.byte_offset(i).unwrap_or(-1), sep) == 0`, composing without a `match`
-because `compare_bytes_at` is total. It maps *positions*, so the end position answers
-`Some(byte_len)` rather than `None`, matching `slice`'s bounds rather than `s[i]`.
+`s.byte_offset(i) -> Maybe<i64>` is the rune→byte conversion, which nothing else in the language can perform — it is what makes "does `sep` occur at rune i" allocation-free. It maps *positions*, so the end position answers `Some(byte_len)` rather than `None`.
 
-A literal *is* a postfix head as of 08/06, so `"abc".len()`, `[1, 2, 3].len()` and
-`1.wrapping_add(2)` all parse — which matters because UFCS made method syntax the normal way
-to call, and every prelude combinator had been unreachable from the literal a reader would
-naturally try it on.
+A literal *is* a postfix head, so `"abc".len()`, `[1, 2, 3].len()` and `1.wrapping_add(2)` all parse.
 
 ## Calling on a Type Name
 
-There isn't any. `Rng.seeded(42)` is **`lyra-E035`** (08/06): Lyra has no type-namespaced
-associated functions, which is why the prelude's constructors are bare (`rng_seeded`). A
-trait gets its own message, since `Trait::method(…)` *is* a spelling the language has.
-
-Until then it type-checked clean and crashed the backend — the hole that made
-`Random.global()` look implemented. It was wider than a member call: a PascalCase name owning
-no constructor inferred as a silent nil, so `Rng.field`, `let x = Rng` and even
-`Nonexistent.make(1)` were all accepted. Building the feature is open; the diagnostic is not
-a placeholder for it.
+There isn't any. `Rng.seeded(42)` is **`lyra-E035`**: Lyra has no type-namespaced associated functions, which is why the prelude's constructors are bare (`rng_seeded`). A trait gets its own message, since `Trait::method(…)` *is* a spelling the language has. Building the feature is open; the diagnostic is not a placeholder for it.
 
 ## A Module Is a File or a Directory
 
-`std.prelude` is `std/prelude.lyra` **or** every `*.lyra` directly inside `std/prelude/`
-(08/07). Both forms are the same module — one path, one namespace, one scope — so a module
-that outgrows a file splits without any of its declarations changing meaning. The shipped
-prelude is seven files.
+`std.prelude` is `std/prelude.lyra` **or** every `*.lyra` directly inside `std/prelude/`. Both forms are the same module — one path, one namespace, one scope — so a module that outgrows a file splits without any of its declarations changing meaning. The shipped prelude is seven files.
 
-**The equivalence is the whole point**, because the obvious alternative is wrong. Receiver-keyed
-overloading, `pub`, and prelude shadowing are all keyed on the *module*, so splitting a grown
-module into *several* modules silently changes what its names mean: `unwrap_or` for `Maybe`
-beside `unwrap_or` for `Result` would become a cross-module duplicate, which is exactly the
-split the standard library was rescued from on 08/04.
+**The equivalence is the whole point**, because the obvious alternative is wrong. Receiver-keyed overloading, `pub` and prelude shadowing are all keyed on the *module*, so splitting a grown module into *several* modules silently changes what its names mean: `unwrap_or` for `Maybe` beside `unwrap_or` for `Result` would become a cross-module duplicate.
 
-Every file in a module directory must declare the module (a file's own text has to say which
-namespace its declarations join, in a namespace where a name may be a receiver overload of one
-three files away); a single-file module needs no header, since its path is its location. A
-subdirectory is the next path down, not more of the parent. A module offering both forms in one
-root is an error rather than a silent preference. Entering a compile at one file of a
-multi-file module brings its siblings — without that, `lyrac check std/prelude/strings.lyra`
-would analyze a fragment and report the rest of the prelude undefined.
+Every file in a module directory must declare the module; a single-file module needs no header, since its path is its location. A subdirectory is the next path down, not more of the parent. A module offering both forms in one root is an error rather than a silent preference. Entering a compile at one file of a multi-file module brings its siblings — without that, `lyrac check std/prelude/strings.lyra` would analyze a fragment and report the rest of the prelude undefined.
 
 ## Shadowing an Imported Name
 
-A module may declare its own version of a name a module it imports exports. The local
-declaration **wins every bare reference in that module** and warns (`lyra-W016`); the
-shadowed one stays reachable through the namespace the import already binds (`seq.map`),
-and no other module is affected.
+A module may declare its own version of a name a module it imports exports. The local declaration **wins every bare reference in that module** and warns (`lyra-W016`); the shadowed one stays reachable through the namespace the import already binds (`seq.map`), and no other module is affected. It is one rule with prelude shadowing (`shadowsAmbient`), keying the shadowing declaration `<module>::<name>` and leaving the bare key to the source.
 
-This was a hard error until 08/08, and the *comparison* is what made it wrong rather than
-merely strict: a declaration over a **prelude** name — one you never asked for — had always
-warned and won, so the explicit act was punished and the implicit one forgiven. It is one
-rule now (`shadowsAmbient`), keying the shadowing declaration `<module>::<name>` and leaving
-the bare key to the source, exactly as the prelude half already did.
-
-What is still an error is a **second claim on the program-wide name**: two modules exporting
-one name, including a module re-exporting one it imports. Neither has a local declaration
-obviously meant to win, so there is nothing for a shadowing rule to prefer.
+What is still an error is a **second claim on the program-wide name**: two modules exporting one name, including a module re-exporting one it imports. Neither has a local declaration obviously meant to win, so there is nothing for a shadowing rule to prefer.
 
 ## VS Code Extension (`lyra-vscode-ext/`)
 
