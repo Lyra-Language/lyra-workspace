@@ -280,6 +280,44 @@ read-out spelling; only newtype → *other* newtype has no path at all). Float r
 on a newtype still refuses; `impl Show for Cents` is the working answer and arguably the
 right one, since print is where transparency would erase the name the newtype carries.
 
+## Effect Bounds Are Written, Not Inferred
+
+`pure`, `det` and `noalloc` are annotations a caller can rely on, and the compiler infers
+the same facts internally — which is why an unwritten bound is easy to mistake for a
+harmless omission. It is not, and `lyra-W018` (08/17) says so: a top-level function or
+trait-impl method with no observable effect that does not say `pure` is warned about.
+
+**Nothing is refused today.** Purity is inferred whole-program, so a `pure` function may
+call an unannotated one whose body the compiler cleared. The bound costs on the *next*
+edit, and what it decides is **where the blame lands**:
+
+```lyra
+let helper = (n: i64) -> i64 => { println("added later"); n * 2 }
+let caller = pure (n: i64) -> i64 => helper(n)
+```
+
+The `println` is reported at `caller`, because `caller` is the only thing in the program
+that promised anything. Mark `helper` and it is reported at the `println` — at the edit, in
+the function being looked at. So a bound is not documentation of what a body does; it is
+what makes a body's *change* fail where it happened.
+
+**Only `pure` is warned about**, and the line is drawn where it is because the other two
+were counted on the same code: `det` fires on roughly a sixth of all functions and
+`noalloc` on two-fifths, with nearly every `det` candidate a terminal-escape wrapper
+(`cursor_hide`, `move_to`) that qualifies only because `det` permits output by design.
+Advice landing on every print helper in a program is advice nobody reads.
+
+An inline closure is never warned about — `(x) => x * 2` inside `xs.map(…)` is an
+expression, not an interface — nor is `main`, which nothing calls, nor an impl method whose
+*trait* already declares the bound, since a trait's bound binds every implementer. There is
+no `#[allow]`-shaped suppression in the language, which is why this is a warning rather than
+an error: an author about to add an effect is entitled to leave the bound off.
+
+The standard library was annotated to land it — 97 impl methods across the prelude, plus
+`std/math` and `std/tui` — at each impl rather than by declaring the traits' methods `pure`,
+which would have been one edit instead of 97 but would have decided that no user's
+`impl Show for MyType` may ever print.
+
 ## Operator Overloading
 
 Arithmetic and bitwise operators are overloadable as of 08/07, comparisons are not, and
