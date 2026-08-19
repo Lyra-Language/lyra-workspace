@@ -379,6 +379,23 @@ There isn't any. `Rng.seeded(42)` is **`lyra-E035`**: Lyra has no type-namespace
 
 Every file in a module directory must declare the module; a single-file module needs no header, since its path is its location. A subdirectory is the next path down, not more of the parent. A module offering both forms in one root is an error rather than a silent preference. Entering a compile at one file of a multi-file module brings its siblings — without that, `lyrac check std/prelude/strings.lyra` would analyze a fragment and report the rest of the prelude undefined.
 
+## An Import's Member List Is the Boundary
+
+`import lib.{ listed }` admits `listed` and nothing else — not the module's other exports,
+and not its types. A **namespace** import (`import lib`) admits no bare names at all: it
+binds `lib.listed`, and if it also admitted bare `listed` the two forms would mean the same
+thing and the member list would be decoration. An alias binds only its local name.
+
+Each module resolves through **its own scope, then its imports, then the prelude**, and
+stops there — so a name reaches a module because that module asked for it, not because some
+other module marked it `pub`. Reaching for an export you did not import names the fix:
+*"module `lib` exports it, but this file does not import it; add `import lib.{ … }`"*, which
+is a different failure from `pub` being absent and says so.
+
+**A method call is exempt**, structurally rather than by a rule: `b.doubled()` resolves
+against the receiver's type, so a method the receiver already justifies needs no import of
+the free function it desugars to.
+
 ## Shadowing an Imported Name
 
 A module may declare its own version of a name a module it imports exports. The local declaration **wins every bare reference in that module** and warns (`lyra-W016`); the shadowed one stays reachable through the namespace the import already binds (`seq.map`), and no other module is affected. It is one rule with prelude shadowing (`shadowsAmbient`), keying the shadowing declaration `<module>::<name>` and leaving the bare key to the source.
