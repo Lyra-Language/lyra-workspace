@@ -317,6 +317,8 @@ Four builtins, and they are the whole of what an interactive TUI needs from the 
 
 **The mouse needs no builtin at all**: a terminal reports clicks as escape sequences *on stdin*, so enabling is a `print` and receiving is `read_key`. One constraint falls out of `read_key` answering a code point — it must be **SGR mode** (`\e[?1006h`), whose fields are ASCII digits. Legacy X10 sends three raw bytes, so a column past 95 is a byte ≥ 128, which `read_key` decodes by swallowing the two bytes after it and losing the column and row together.
 
+**`std.tui` coordinates are 0-based**, both ways: `MouseEvent`'s `col`/`row` and `move_to(col, row)`. The terminal itself counts from one, and the two functions that touch an escape sequence are the only things that know — `mouse_event` subtracts the one, `move_to` adds it back. So a click indexes `grid[row][col]` with no arithmetic and a loop written `0..<rows` compares against it directly, which is the rest of the language's convention rather than the terminal's.
+
 Neither of the last two can fail into nonsense. `terminal_size` answers 80x24 where there is no window, so a piped run still renders; `set_raw_mode` saves the original termios on the first enable and restores *that* on disable, rather than handing the caller a token to keep safe.
 
 ## Randomness
