@@ -215,6 +215,32 @@ let combine<t> where t: Arithmetic = (a: t, b: t) -> t => a * b + a
 
 A trait's body is optional, braces and all; the bodiless spelling is the one to reach for, since there is no body to delimit. The umbrella's impl is still required and still checked: `impl Arithmetic for Vec2` is what triggers the obligation, so a type missing `Mul` is refused there rather than at the call.
 
+## Trait Default Methods
+
+A trait method may carry a body, which an impl inherits by writing nothing and overrides
+by writing a clause:
+
+```lyra
+trait Named {
+  pure name: (Self) -> string
+  pure shout: (Self) -> string = (self) => self.name() ++ "!"
+}
+impl Named for Cat { name = pure (self) => "cat" }   // Cat.shout() is "cat!"
+```
+
+**A default is generic code.** `Self` is a type variable bounded by the declaring trait, so
+the body is checked once and compiled per implementing type — which is why it may call any
+method the trait declares, or that one of its **supertraits** declares, and why calling
+anything else is an error at the trait rather than at each impl.
+
+An impl that provides the method wins; dispatch tries an impl's own clauses first and
+reaches the default only when they match nothing. A default calling another default reaches
+that method's *override* where one exists, so the two compose the way a reader expects.
+
+**The bound the trait declares is enforced on the default**, and reported there — a
+`pure shout` whose default prints has broken the contract at the declaration, and blaming
+each impl that inherited it would blame code that wrote nothing.
+
 ## Calling on a Receiver
 
 Two related features, both opted into by naming a function's first parameter `self`:
