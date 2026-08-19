@@ -367,6 +367,27 @@ UTF-8, an immutable `{ptr, byte_len, rune_count}` fat pointer. Everything the *l
 
 A literal *is* a postfix head, so `"abc".len()`, `[1, 2, 3].len()` and `1.wrapping_add(2)` all parse.
 
+## Raw Pointers
+
+`&x` takes one, `&mut x` takes a writable one, `p^` reads through it and `p^ = v` writes.
+All four, and a call to an `unsafe` function, need an enclosing `unsafe { … }` block or
+`unsafe` function (`lyra-E011`); unsafe-ness does not leak across a lambda boundary. The
+block changes what is *permitted* inside it and nothing else — it is its body, so it takes
+a value in value position and a binding declared in it is scoped to it.
+
+**Mutability is two separate questions.** `&mut x` requires **x** to be mutable, the same
+rule every interior mutation obeys; `p^ = v` requires **p** to be a `^mut T`
+(`lyra-E061`). A `^mut T` may be copied into a `let` and a `^T` may be taken of a `var`, so
+neither implies the other.
+
+**Only storage has an address**: a binding, a field or an element. `&f()` is `lyra-E059` —
+the temporary stops existing at the end of the statement, so the pointer would dangle
+immediately. `^` on a non-pointer is `lyra-E060`.
+
+There is **no pointer arithmetic, no comparison, no null**, and no way to make a pointer
+other than `&`. A raw pointer addresses a binding that exists; producing one from an
+integer is a separate feature with its own safety story.
+
 ## Calling on a Type Name
 
 There isn't any. `Rng.seeded(42)` is **`lyra-E035`**: Lyra has no type-namespaced associated functions, which is why the prelude's constructors are bare (`rng_seeded`). A trait gets its own message, since `Trait::method(…)` *is* a spelling the language has. Building the feature is open; the diagnostic is not a placeholder for it.
