@@ -386,9 +386,21 @@ neither implies the other.
 the temporary stops existing at the end of the statement, so the pointer would dangle
 immediately. `^` on a non-pointer is `lyra-E060`.
 
-There is **no pointer arithmetic, no comparison, no null**, and no way to make a pointer
-other than `&`. A raw pointer addresses a binding that exists; producing one from an
-integer is a separate feature with its own safety story.
+**Pointer arithmetic is one named method, never an operator**: `p.offset(n) -> ^T`,
+measured in **elements**, signed, and propagating mutability so `p.offset(n)^ = v` works
+on a `^mut T`. `p[i]` is deliberately not the spelling — it is `xs[i]`'s spelling with
+none of `xs[i]`'s bounds check, so two things that behave differently would look alike —
+and `^` stays the only load, which makes `p.offset(3)^` visibly the two acts it is.
+
+Nothing about it can be checked, because a raw pointer carries no length. A pointer *and*
+a length can be: `std.ffi`'s `CBuffer { ptr, len }` pairs them and `buf.get(i)` traps on a
+bad index exactly as `xs[i]` does — ordinary Lyra written over the primitive, so `unsafe`
+appears once in the standard library instead of at every use. It does not make the pointer
+*valid*; a wrong length checks against the wrong number.
+
+There is still **no comparison and no null**, and no way to make a pointer other than `&`.
+A raw pointer addresses a binding that exists; producing one from an integer is a separate
+feature with its own safety story.
 
 ## Calling on a Type Name
 
