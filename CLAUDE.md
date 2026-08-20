@@ -365,6 +365,24 @@ UTF-8, an immutable `{ptr, byte_len, rune_count}` fat pointer. Everything the *l
 
 `index`/`contains`/`split` are **generic over the needle** — `pub trait Needle`, whose `found_at` reports a match as a `(Index, Length)` span (`pub type` aliases of `i64`), implemented for `rune` and `string` and open to user types. A span rather than a fixed step is what `"a::b::c".split("::")` needs. `split` on an **empty separator traps**, naming the fix: `to_runes() -> []rune`.
 
+**`bytes.decode_utf8() -> string`** builds a string from a `[]u8` or `[N]u8`, and is a
+builtin because it has to be: it allocates a ref-counted box and copies into it, and
+concatenation is the only string construction Lyra code has. Without it the spelling was
+`s = s ++ "${rune(b)}"` in a loop — one allocation per rune, each copying everything
+before it. Measured at 400 KB: 1.44 s that way, 0.02 s this way, and 8× the input costs
+24× the time on the loop against no change at all here.
+
+It is named for the *interpretation*: `to_string` on a byte array is ambiguous with
+rendering it, since `[104, 105]` as text is either "hi" or "[104, 105]" depending on what
+the reader assumed. **It does not validate** — the rune count is the number of
+non-continuation bytes, exactly as `read_line` counts libc's — so malformed input yields a
+string whose length disagrees with its bytes. One unvalidated answer rather than two
+different ones; both are fixed by the same change when it comes.
+
+The copy is not avoidable and is not a cost this pays reluctantly: a box's header sits at
+its start, so a string cannot point into an array's buffer — and a later `push` may move
+that buffer anyway.
+
 `s.byte_offset(i) -> Maybe<i64>` is the rune→byte conversion, which nothing else in the language can perform — it is what makes "does `sep` occur at rune i" allocation-free. It maps *positions*, so the end position answers `Some(byte_len)` rather than `None`.
 
 A literal *is* a postfix head, so `"abc".len()`, `[1, 2, 3].len()` and `1.wrapping_add(2)` all parse.
