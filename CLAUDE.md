@@ -365,8 +365,8 @@ UTF-8, an immutable `{ptr, byte_len, rune_count}` fat pointer. Everything the *l
 
 `index`/`contains`/`split` are **generic over the needle** — `pub trait Needle`, whose `found_at` reports a match as a `(Index, Length)` span (`pub type` aliases of `i64`), implemented for `rune` and `string` and open to user types. A span rather than a fixed step is what `"a::b::c".split("::")` needs. `split` on an **empty separator traps**, naming the fix: `to_runes() -> []rune`.
 
-**`bytes.decode_utf8() -> string`** builds a string from a `[]u8` or `[N]u8`, and is a
-builtin because it has to be: it allocates a ref-counted box and copies into it, and
+**`bytes.decode_utf8() -> string`** and **`s.encode_utf8() -> []u8`** are the two ways
+across between text and bytes, and both are builtins because they have to be: it allocates a ref-counted box and copies into it, and
 concatenation is the only string construction Lyra code has. Without it the spelling was
 `s = s ++ "${rune(b)}"` in a loop — one allocation per rune, each copying everything
 before it. Measured at 400 KB: 1.44 s that way, 0.02 s this way, and 8× the input costs
@@ -379,9 +379,17 @@ non-continuation bytes, exactly as `read_line` counts libc's — so malformed in
 string whose length disagrees with its bytes. One unvalidated answer rather than two
 different ones; both are fixed by the same change when it comes.
 
-The copy is not avoidable and is not a cost this pays reluctantly: a box's header sits at
-its start, so a string cannot point into an array's buffer — and a later `push` may move
-that buffer anyway.
+`encode_utf8` exists for the mirror-image reason: **nothing else can read a byte out of a
+string.** `byte_len` measures, `byte_offset` maps a rune position to a byte one and
+`compare_bytes_at` compares — none of them reads, and `s[i]` is a rune — so the bytes were
+reachable only by re-encoding each rune by hand, a UTF-8 encoder in user code recovering
+bytes the string already holds. The result is a `[]u8` rather than a `[N]u8` because the
+length is a run-time property, which also makes it `push`-able.
+
+Neither copy is avoidable, and each is the reason rather than the cost. A box's header
+sits at its start, so a string cannot point into an array's buffer — and a later `push`
+may move that buffer anyway; conversely the bytes must be a copy or a mutable `[]u8`
+would be a way to write through an immutable string.
 
 `s.byte_offset(i) -> Maybe<i64>` is the rune→byte conversion, which nothing else in the language can perform — it is what makes "does `sep` occur at rune i" allocation-free. It maps *positions*, so the end position answers `Some(byte_len)` rather than `None`.
 
