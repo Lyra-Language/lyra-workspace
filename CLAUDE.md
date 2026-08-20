@@ -420,7 +420,8 @@ and `^` stays the only load, which makes `p.offset(3)^` visibly the two acts it 
 
 Nothing about it can be checked, because a raw pointer carries no length. A pointer *and*
 a length can be: `std.ffi`'s `CBuffer { ptr, len }` pairs them and `buf.get(i)` traps on a
-bad index exactly as `xs[i]` does — ordinary Lyra written over the primitive, so `unsafe`
+bad index exactly as `xs[i]` does — and `s.cstring()` goes the other way, a NUL-terminated
+`[]u8` the caller keeps alive with the pointer taken at the call site — ordinary Lyra written over the primitive, so `unsafe`
 appears once in the standard library instead of at every use. It does not make the pointer
 *valid*; a wrong length checks against the wrong number.
 
