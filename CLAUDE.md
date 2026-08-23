@@ -199,6 +199,8 @@ An operand whose type is a *type parameter* resolves through a `where` bound —
 
 `Cents(150) + Cents(275)` (a constructor call as a math operand) and `(a + b).x` (a parenthesized binary expression as a postfix head) both parse. Each node has exactly **one** derivation path; adding a second is an unresolved reduce-reduce at every operand position — see the grammar repo's partition rule.
 
+**`min`, `max` and `clamp` are the prelude's, over `where t: Ord`**, with a `self` receiver so `a.min(b)` and `min(a, b)` are one call. `min` keeps `self` on a tie and `max` takes `other`, so the pair still names both values when two compare equal but differ; `clamp` traps on `lo > hi`, an empty range with no nearest value to answer with. The prelude implements `Ord` for the ten integer widths and `rune` **so the bound can be satisfied**, not so a call can dispatch — `3 < 5` stays a machine compare. **Floats are excluded**: `<=>` refuses them because NaN orders against nothing, and inventing a total order here would have every generic inherit the guess, so `min(1.5, 2.5)` is a compile error while `if a < b { a } else { b }` on concrete floats is fine.
+
 ## Supertraits
 
 `trait B: A` means two things, and both hold: **every implementer of `B` must implement `A`** (`lyra-E040`, checked at each `impl`), and **a `where t: B` bound reaches `A`'s methods** — `v.foo()` resolves, and `v` satisfies a callee bounded `where u: A`.
