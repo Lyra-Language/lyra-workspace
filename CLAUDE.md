@@ -426,8 +426,12 @@ bad index exactly as `xs[i]` does. Going the other way, `s.cstring()` is a NUL-t
 behind a contiguous `T*`; two functions because `&x` and `&mut x` are two spellings and a
 method call has nowhere to put the word, so `data_mut` needs a `mut` receiver. Both trap on
 an empty array, and both are dynamic arrays only until const generics let a `[N]T` be a
-generic parameter. All of it is ordinary Lyra written over the primitive, so `unsafe`
-appears once in the standard library instead of at every use. It does not make the pointer
+generic parameter. `with_cstring(s, f)` is the scoped form — it lends a pointer for one
+call and takes it back — and is deliberately **not** marked `unsafe`, which is the line the
+module draws: *`unsafe` marks handing a pointer out to keep, not lending one for a call.*
+`with_cstrings(a, b, f)` is the flat two-string form. All of it is ordinary Lyra written
+over the primitive, so `unsafe` appears once in the standard library instead of at every
+use. It does not make the pointer
 *valid*; a wrong length checks against the wrong number.
 
 There is still **no comparison and no null**, and no way to make a pointer other than `&`.
