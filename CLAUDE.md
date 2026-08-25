@@ -395,7 +395,7 @@ would be a way to write through an immutable string.
 
 `s.byte_offset(i) -> Maybe<i64>` is the rune→byte conversion, which nothing else in the language can perform — it is what makes "does `sep` occur at rune i" allocation-free. It maps *positions*, so the end position answers `Some(byte_len)` rather than `None`.
 
-A literal *is* a postfix head, so `"abc".len()`, `[1, 2, 3].len()` and `1.wrapping_add(2)` all parse.
+A literal *is* a postfix head, so `"abc".len()`, `[1, 2, 3].len()` and `1.wrapping_add(2)` all parse — and so is a **constructor call**, which is what makes `Some(1).unwrap_or(0)` parse. That one did not until 08/22: a constructor call was reachable only as a literal, so the juxtaposition rule read `Some` as applied to `(1).unwrap` and left `_or(0)` to start a statement. A binding receiver worked, which is why every program written before then compiled.
 
 ## Raw Pointers
 
