@@ -309,7 +309,7 @@ Four builtins, and they are the whole of what an interactive TUI needs from the 
 - `terminal_size() -> (i64, i64)` — **(columns, rows)**, width first;
 - `wait_for_key_ms(timeout: i64) -> bool` — wait up to `timeout` ms and say whether input is readable.
 
-**Only input needed the compiler.** `\e` and `\x1b` both reach stdout as byte 27, so ANSI colour, cursor positioning, clear-screen and the alternate buffer are ordinary `print` calls. What no prelude code can fix is that `read_line` waits for Enter — that is the terminal's line discipline, and turning it off is a syscall. Everything above these four (decoding `\e[A` into "up arrow", colour helpers, box drawing, frame diffing) is ordinary Lyra and belongs in `std.tui`.
+**Only input needed the compiler.** `\e` and `\x1b` both reach stdout as byte 27, so ANSI colour, cursor positioning, clear-screen and the alternate buffer are ordinary `print` calls. What no prelude code can fix is that `read_line` waits for Enter — that is the terminal's line discipline, and turning it off is a syscall. Everything above these four (decoding `\e[A` into "up arrow", colour helpers, box drawing, frame diffing) is ordinary Lyra in `std.tui`, and as of 08/22 all of it is written: `frame.lyra` diffs a frame **by row** and gives consecutive changed rows one cursor move, `box.lyra` returns box pieces a caller assembles, `status.lyra` has `status_bar`/`status_split`. A row diff rather than a cell diff because a row carries escape sequences and nothing can tell which of its runes are visible cells.
 
 `read_key` answers a code point rather than a byte, so a multi-byte character is one key instead of two broken ones. It does **not** decode escape sequences: an arrow key arrives as ESC, `[`, `A` in three calls.
 
