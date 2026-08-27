@@ -124,6 +124,14 @@ An element may be any type but `void`, including an anonymous tuple (`[](i64, st
 
 `xs.push(v)` grows a dynamic array, amortized doubling. Elements live behind a pointer (`{rc, weak, len, cap, T*}`) rather than inline in the box, so growth cannot move the box and dangle every alias; the cost is one extra load per element access, language-wide. `push` mutates in place, returns void, needs a mutable receiver (the same rule and diagnostic as `xs[i] = v`), and `noalloc` refuses it.
 
+`[...xs, v]` splices an array into a literal — the one append-shaped syntax the language has, and what a reader reaches for before finding `push`. Three rules:
+
+- **The operand is any postfix expression**, not just a name: `[...f(x), ...h.xs, ...ys[0]]` all work.
+- **A spread makes the result a `[]T`, always** — even where every operand is a fixed `[N]T` whose lengths would add up. A `[N]T` carries its size in its type, so deriving the arity from whether the operands *happen* to be fixed would make `[...xs, 1]` change type when `xs`'s declaration changes from `[3]i64` to `[]i64`, with the literal reading identically.
+- **It allocates once**, sizing the result from the operands' lengths rather than growing — which is the cost it exists to spare an author who would otherwise write the `push` loop by hand. Every operand is evaluated exactly once, in source order.
+
+A spread is only an array literal's element (`lyra-E068`): it stands for zero or more members of a surrounding list, and only an array literal has one. `f(...xs)` is refused rather than unimplemented — argument spread would make a call's arity a run-time property. A non-array operand is refused by name where the mistake is plausible: `[..."ab"]` names `to_runes()`.
+
 `[v; n]` repeats a value, in both flavours. Two rules matter:
 
 - **The value is evaluated once**, so `[next(); 3]` is one call. Each slot is then an owner, so a managed element takes n-1 extra retains — the literal `[s, s, s]` needs none of that, lowering three separate uses.
