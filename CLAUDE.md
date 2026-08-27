@@ -355,6 +355,8 @@ Ambient reads carry `EffectTime`, so `pure`/`det` refuse them; a timestamp threa
 
 UTF-8, an immutable `{ptr, byte_len, rune_count}` fat pointer. Everything the *language* exposes is **rune-indexed**; the byte length is the representation's.
 
+**A NUL sits one byte past every string's bytes**, at `data[byte_len]`. Nothing in the language reads it — the length stays authoritative, so an interior NUL is still a legal byte and every operation is what it was — and it exists so a string can be handed to C **without copying it**: `s.cstring_ptr()` is an `unsafe` builtin that checks for an interior NUL and yields the address, and `std.ffi`'s `with_cstring` is one line over it and now `pure noalloc`. Crossing used to mean an allocation and two passes per call; measured, **146 ns → 8 ns** for a 26-byte string. The bytes are immutable and a *literal*'s are genuinely read-only, so a C function that writes through the pointer faults — the type is `^u8` for that reason, and `unsafe` is what stands between.
+
 `s[i]` is the i-th code point (O(i)), `for c in s` walks code points, and `s.len()` is the rune count — **O(1)**, a field read maintained arithmetically at each construction (a literal counts at compile time, `++` adds, `slice` subtracts; only `read_line` and interpolation's formatted segments pay a linear `lyra_utf8_count`). `len` counts runes because the *index* does: a byte length would silently disagree with `s[i]` on the first non-ASCII input.
 
 **The indexed traversal is `for i, c in s`** — rune index and rune from one linear walk. `for i in 0..<s.len() { s[i] }` decodes from the start at every `s[i]`, which is O(n²) and a trap the prelude itself once fell into.
