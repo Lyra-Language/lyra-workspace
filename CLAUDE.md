@@ -120,6 +120,8 @@ All of them are pure and allocate nothing (a `Maybe` of a scalar is an inline un
 
 An element may be any type but `void`, including an anonymous tuple (`[](i64, string)`), a raw pointer and an anonymous struct, and may carry one allocation or `weak` modifier: `[]shared Node`.
 
+`xs.slice(start, end)` is the half-open element range `[start, end)`, matching `..<` and the string method. The result is **always a `[]T`**, even from a `[N]T`: the length is `end - start`, a run-time value, so no fixed size could be written down — which also makes it `push`-able. It **copies**, so `noalloc` refuses it. Sharing the parent's element buffer would need that buffer ref-counted apart from the box that owns it, and a `push` on the parent reallocates it, so the slice would dangle while the array it came from is perfectly alive. `end == len` is legal (it names the position one past the last element, so `xs.slice(0, xs.len())` is a copy) and `start == end` is the empty array; a negative bound, either bound past the length, and an inverted range all trap. It exists for the commonest C output convention — a function fills a buffer you sized and reports how much it used — which had no spelling but a `push` loop.
+
 `xs.push(v)` grows a dynamic array, amortized doubling. Elements live behind a pointer (`{rc, weak, len, cap, T*}`) rather than inline in the box, so growth cannot move the box and dangle every alias; the cost is one extra load per element access, language-wide. `push` mutates in place, returns void, needs a mutable receiver (the same rule and diagnostic as `xs[i] = v`), and `noalloc` refuses it.
 
 `[v; n]` repeats a value, in both flavours. Two rules matter:
@@ -247,7 +249,7 @@ each impl that inherited it would blame code that wrote nothing.
 
 Two related features, both opted into by naming a function's first parameter `self`:
 
-- **UFCS** (call side): `m.unwrap_or(0)` resolves to the free function `unwrap_or(m, 0)`. The call is rewritten to pass the receiver as argument 0 before anything downstream sees it, so nothing after the typechecker knows UFCS exists. An `own` receiver is refused, so a move always looks like a call; calling into another module method-style needs an import.
+- **UFCS** (call side): `m.unwrap_or(0)` resolves to the free function `unwrap_or(m, 0)`. The call is rewritten to pass the receiver as argument 0 before anything downstream sees it, so nothing after the typechecker knows UFCS exists. An `own` receiver is refused, so a move always looks like a call; calling into another module method-style needs an import. **A receiver whose type is a type parameter resolves too**, against a function generic in its own receiver — so `a.max(b)` inside `where t: Ord` is the prelude's `max`, and the two spellings of one call agree in generic code as they do in concrete code.
 - **Receiver-keyed overloading** (declaration side): a module may declare one name several times when each declaration takes a `self` receiver and their receiver *type heads* differ — `Maybe<t>` beside `Result<t,e>` is allowed, a second `Maybe<…>` is refused where it is written, since ranking two matching candidates would need a specificity ordering the language does not have. The prelude uses it for `unwrap_or`/`unwrap_or_else`.
 
 Without the second, `Maybe` and `Result` could each be *called* with `map` but only one of them could have a `map` *written* in a given module. Details in `lyra/pkg/analyzer/typechecker/README.md`; a name still may not be exported by two modules at once (`lyra/todo.md`, Modules).
