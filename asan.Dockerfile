@@ -28,8 +28,14 @@ FROM golang:1.26-bookworm
 #
 # The unversioned metapackage tracks whatever clang version Debian defaults to, so this
 # stays correct when the base image moves rather than pinning a version that will rot.
+# zlib1g-dev is for `examples/zlib.lyra`, the FFI's **real-library** proof: the vendored C
+# fixture shows the ABI is self-consistent across a boundary this project wrote both sides
+# of, and only a library nobody wrote for Lyra shows it matching a convention it had to obey
+# rather than choose. `-lz` links on macOS without a package and does not here, which is why
+# the round-trip test self-skips — and why it must not skip *here*, the one environment
+# whose job is to catch what macOS does not.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends clang libclang-rt-dev \
+    && apt-get install -y --no-install-recommends clang libclang-rt-dev zlib1g-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # CGO compiles the ~110 MB generated parser.c. gcc is the base image's default and the
