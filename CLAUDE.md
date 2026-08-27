@@ -245,6 +245,11 @@ that method's *override* where one exists, so the two compose the way a reader e
 `pure shout` whose default prints has broken the contract at the declaration, and blaming
 each impl that inherited it would blame code that wrote nothing.
 
+**A bound the default body *needs* goes on the trait as a supertrait.** A trait method has no
+`where` clause and `Self` is not a name a program can constrain, so `trait Doubled: Show` is
+how a default demands something of every implementer — which is exactly what the supertrait
+obligation then requires of each `impl`.
+
 ## Calling on a Receiver
 
 Two related features, both opted into by naming a function's first parameter `self`:
