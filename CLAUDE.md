@@ -378,6 +378,14 @@ concatenation is the only string construction Lyra code has. Without it the spel
 before it. Measured at 400 KB: 1.44 s that way, 0.02 s this way, and 8× the input costs
 24× the time on the loop against no change at all here.
 
+**`p.decode_utf8(byte_len)`** is the same method on a **raw pointer** — memory Lyra does
+not own, which is the only kind a `^u8` can address. The length is an argument because a
+pointer carries none, which is also why it is `unsafe`: nothing can check that many bytes
+are readable, and a negative one traps while a too-large one cannot be caught at all.
+`std.ffi`'s `CBuffer` is the checked pairing and its `decode_utf8` is one line over this;
+before it, reading a C buffer meant a bounds-checked `get` and a capacity-checked `push`
+per byte and then a second full copy (548 µs → 256 µs over 400 KB).
+
 It is named for the *interpretation*: `to_string` on a byte array is ambiguous with
 rendering it, since `[104, 105]` as text is either "hi" or "[104, 105]" depending on what
 the reader assumed. **It does not validate** — the rune count is the number of
