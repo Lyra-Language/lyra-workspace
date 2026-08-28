@@ -496,7 +496,7 @@ the free function it desugars to.
 
 ## Shadowing an Imported Name
 
-A module may declare its own version of a name a module it imports exports. The local declaration **wins every bare reference in that module** and warns (`lyra-W016`); the shadowed one stays reachable through the namespace the import already binds (`seq.map`), and no other module is affected. It is one rule with prelude shadowing (`shadowsAmbient`), keying the shadowing declaration `<module>::<name>` and leaving the bare key to the source.
+A module may declare its own version of a name a module it imports exports. The local declaration **wins every bare reference in that module** and warns (`lyra-W016`); the shadowed one stays reachable through the namespace the import already binds (`seq.map`), and no other module is affected. It is one rule with prelude shadowing (`noteAmbientShadow`): every declaration is keyed `<module>::<name>`, and resolution tries the module's own declaration first.
 
 What is still an error is a **second claim on the program-wide name**: two modules exporting one name, including a module re-exporting one it imports. Neither has a local declaration obviously meant to win, so there is nothing for a shadowing rule to prefer.
 
