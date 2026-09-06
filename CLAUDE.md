@@ -159,6 +159,29 @@ Evaluating once is also the form's one trap, and **`lyra-W019`** names it: `[[' 
 
 The predicate is narrower than "managed": a `[]T`, a `shared` aggregate with a writable field, or any struct/tuple/`data`/`[N]T` containing one. A string is managed and *immutable*, so `["hi"; 3]` stays silent. Two rules that surprise: `readonly` does not stop the sharing (it blocks the direct write, not `let mut c = fs[0].cells` then `c[0] = 7`), and a `shared` **scalar** does not share, since assigning to the binding rebinds it rather than writing the box. `examples/life.lyra` is the program written to walk into the shape.
 
+## HashMap
+
+`std.collections` (`lyra/std/collections/hashmap.lyra`) is `HashMap<k, v>`, ordinary Lyra
+over one `[]Maybe<Entry<k, v>>`: open addressing, linear probing, power-of-two capacity,
+load capped at 3/4, **backward-shift deletion** rather than tombstones. Iteration order is
+the table's and changes on growth; sort `keys()` when order matters.
+
+**A key implements `Hash`** — one method, `hash: (Self) -> u64`, provided for the integer
+widths, `rune`, `bool` and `string`. The rule an impl must keep: values equal under `==`
+hash alike. Equality itself is structural and needs no bound. A struct key combines fields
+with `hash_combine`; the map mixes every hash through a finalizer, so an impl may answer
+the raw integer. There is no `Eq` bound because `==` works on a bare type variable.
+
+**`insert` answers nothing and `replace` answers the displaced value**, because a discarded
+`Maybe` is `lyra-W006` and the ordinary insert must not warn. `remove` answers the value;
+`let _ = m.remove(k)` discards it. Constructors are bare (`hashmap_new`,
+`hashmap_with_capacity`) and take their type arguments from the annotation or a turbofish.
+
+Three things in the file are workarounds for open compiler bugs (see `lyra/todo.md`,
+Known bugs, 09/06) and must not be "tidied": the parameter named `new_entry` rather than
+`entry`, the `Maybe<v>` annotations on `previous`/`removed`, and `hash_u128` sitting above
+the impls that call it.
+
 ## Ranges
 
 Four end operators, two axes: `..<` `..<=` ascend, `..>` `..>=` descend; `..<` `..>` exclude the end bound, `..<=` `..>=` include it. An optional step follows a colon (`0..<10:2`) and is a **magnitude** — a negative step is an error, because the operator already says which way the range runs. A step of zero or less that is only knowable at **run time** traps (`lyra: range step must be positive`) rather than spinning: provable → compile error, otherwise → trap. A comprehension over the same degenerate step yields an empty array instead, since its count is computed up front.
