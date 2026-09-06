@@ -100,6 +100,22 @@ Other: `bool`, `string`, `rune` (a Unicode code point, i32).
 Compiler-internal, no syntax: `never` — the bottom type, the result of `panic(msg)`. Assignable to every type (nothing is assignable to it), which lets a diverging expression sit in value position: `match m { Some(v) => v, None => panic("…") }`. `panic` is EffectNone, so `pure`/`det`/`noalloc` may all call it.
 Internal (literal inference only): `untyped_int`, `untyped_signed_int`, `untyped_float`.
 
+## Compound Assignment
+
+`+= -= *= /= %= &= |= ~= <<= >>=` name any assignable **place**, not only a binding:
+`counts[i].n += 1`, `p.x *= 2`. The place is what `=` accepts, and the writability rule is
+literally the one `=` applies — the compound form is the shorter spelling of
+`place = place op rhs`, so a `readonly` or interior-mutability rule that held for one and
+not the other would depend on spelling.
+
+**It is not a desugaring into that statement**, which would walk the path twice: the
+address is computed once, so `xs[idx()] += 5` calls `idx` exactly once. A compound
+assignment reads and writes *one* place.
+
+An overloaded operator is reached through it, since `a += b` is the call `a = a + b` makes.
+A shift's count is typed independently of the target, so the **target's** signedness picks
+the shift — `r.bits >>= 1` on a `u8` 200 is 100, not 228.
+
 ## Overflow Arithmetic
 
 Integer `+ - * /` **trap** on overflow. The three explicit alternatives are builtin methods on any concrete integer width, and having all three is the point of trapping by default — each says what the author meant:
@@ -382,6 +398,30 @@ UTF-8, an immutable `{ptr, byte_len, rune_count}` fat pointer. Everything the *l
 
 `starts_with`/`ends_with` are **byte-level** — one line each over `s.byte_len()` (O(1)) and `s.compare_bytes_at(offset, other)` (memcmp at a byte offset, comparing exactly `other`'s length, so `== 0` is a prefix test). Not an approximation: UTF-8 is prefix-free and self-synchronizing, so a byte-prefix is exactly a rune-prefix. Both are `pure noalloc`. The rune-indexed version was quadratic — 19.9 ms against 19 µs for a 2000-rune haystack.
 
+**The rune classifiers are ASCII by name, and the name is the boundary**: `is_ascii_upper`,
+`is_ascii_lower`, `is_ascii_alpha`, `is_ascii_digit`, `is_ascii_punctuation`,
+`is_ascii_printable`, `is_ascii_control_code`. `is_ascii_printable` is the range space
+through `~`, **not** the complement of the control codes — a complement calls every rune
+above 127 printable, which then made `é` and `π` *punctuation*, since they are not letters,
+digits or spaces by ASCII's reckoning either. Stating the range keeps a rune the module
+cannot classify outside all of its answers rather than inside the last one. The corollary
+for a tokenizer: `is_ascii_alpha` treats every accented letter as a word boundary, so
+`héllo` splits in two; `is_ascii_space` is the predicate that survives non-ASCII text.
+
+`to_ascii_lower`/`to_ascii_upper` are **total** — identity on anything that is not a letter
+of the opposite case — and exist at both `rune` and `string` under one name, which
+receiver-keyed overloading is what allows. A `Result` would make the *common* case the
+error arm, so every call site would end in `.unwrap_or(c)` restoring the value the function
+already had. ASCII only, and widening is a different function rather than a bigger table:
+case folding is not per-rune in general (`ß` uppercases to two characters, Turkish `I`
+folds to a dotless `ı`).
+
+`s.split_when(pred)` is `split`'s predicate form, and **it collapses empty parts where
+`split` keeps them**. A separator in `split` is a value the caller named, so an empty part
+between two of them is data — `"a,,b"` is a CSV row with an empty middle field. A predicate
+names a *boundary*, and a run of boundaries is one boundary, so `"hello, world."` is two
+words and a leading or trailing separator contributes no part.
+
 `index(needle, offset = 0) -> Maybe<i64>` is a naive scan over `compare_bytes_at`, with `offset` and the result in **rune** indices so the answer feeds straight into `slice` (the scan is byte-level, reconciled by carrying a byte cursor alongside the rune counter). Naive rather than Rabin–Karp deliberately: RK buys only an *expected* bound, and a real guarantee wants a `memmem` builtin.
 
 `index`/`contains`/`split` are **generic over the needle** — `pub trait Needle`, whose `found_at` reports a match as a `(Index, Length)` span (`pub type` aliases of `i64`), implemented for `rune` and `string` and open to user types. A span rather than a fixed step is what `"a::b::c".split("::")` needs. `split` on an **empty separator traps**, naming the fix: `to_runes() -> []rune`.
@@ -466,6 +506,27 @@ use. It does not make the pointer
 There is still **no comparison and no null**, and no way to make a pointer other than `&`.
 A raw pointer addresses a binding that exists; producing one from an integer is a separate
 feature with its own safety story.
+
+## A Call's Type Arguments
+
+A generic call's type variables are solved from its **argument types**, and where those
+cannot reach, from two other sources.
+
+**`f::<i64>()` binds them explicitly**, positionally and in the declaration's order. It is
+the only thing that can reach a variable no argument mentions when there is no context
+either.
+
+**A context solves what the arguments cannot** — an annotation, a declared return type, or
+the parameter slot a call is passed into. This is what makes a generic constructor
+callable: `with_capacity<k,v>(cap) -> HashMap<k,v>` takes an i64 that says nothing about
+either parameter, so without it a generic collection could not have one.
+
+Two restrictions, both deliberate. A context binds **only variables no parameter mentions**
+— a variable the arguments determine is still theirs, so there is no second source of truth
+and no precedence question — and only on a declaration that **declares** its parameters,
+since a lowercase name is a type variable whether or not a `<…>` list introduced it and an
+undeclared return-only one is likelier a typo. Precedence: turbofish beats context, context
+fills only what arguments cannot reach.
 
 ## Calling on a Type Name
 
