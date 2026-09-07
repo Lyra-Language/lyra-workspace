@@ -116,6 +116,34 @@ An overloaded operator is reached through it, since `a += b` is the call `a = a 
 A shift's count is typed independently of the target, so the **target's** signedness picks
 the shift — `r.bits >>= 1` on a `u8` 200 is 100, not 228.
 
+## Tuple Assignment
+
+`(a, b) = (b, a)` writes several **places** from one tuple — a swap with no temporary,
+or two bindings updated from one call: `(q, r) = divmod(n, d)`. A place is what `=`
+accepts on its left: a name, a member `p.x`, an index `xs[i]` or a deref `p^`; anything
+else in the target is refused by the collector, and a constructor target (`Some(a) = …`)
+by name. The parentheses are the tuple, as everywhere else in the language — `a, b = b, a`
+is not a form, because a bare comma makes a tuple nowhere else and `let a, b = …` is a
+syntax error.
+
+**The right side is evaluated to a tuple first, then the places are written left to
+right.** That order is what makes the swap a swap. Each place's address is computed once,
+after the right side, so `(xs[f()], xs[g()]) = …` calls each once. Arity and element types
+are checked as a destructuring `let`'s are, and each place is checked by the rule its
+stand-alone assignment applies, so an immutable `let` in the target reports exactly as
+`c = v` would.
+
+**It is a desugaring in the collector, not a statement kind**: `{ let (t0, t1) = rhs;
+p0 = t0; p1 = t1 }`, with position-stamped names in a scope of their own. The dozen
+passes that know an assignment — purity, ownership, use-after-move, captures, range
+analysis, the backend — never see it, and the golden test records the shape. The target
+is parsed as an ordinary `tuple_literal` because a second place-tuple rule would be a
+reduce-reduce conflict at every element (the grammar's partition rule).
+
+An arity mismatch in **any** tuple destructuring is reported once (09/07): the names that
+pair up are bound with their types and the rest with none, so later uses no longer cascade
+into "undefined identifier" — which would have exposed the synthesized names.
+
 ## Overflow Arithmetic
 
 Integer `+ - * /` **trap** on overflow. The three explicit alternatives are builtin methods on any concrete integer width, and having all three is the point of trapping by default — each says what the author meant:
