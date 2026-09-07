@@ -187,6 +187,13 @@ Evaluating once is also the form's one trap, and **`lyra-W019`** names it: `[[' 
 
 The predicate is narrower than "managed": a `[]T`, a `shared` aggregate with a writable field, or any struct/tuple/`data`/`[N]T` containing one. A string is managed and *immutable*, so `["hi"; 3]` stays silent. Two rules that surprise: `readonly` does not stop the sharing (it blocks the direct write, not `let mut c = fs[0].cells` then `c[0] = 7`), and a `shared` **scalar** does not share, since assigning to the binding rebinds it rather than writing the box. `examples/life.lyra` is the program written to walk into the shape.
 
+**Sorting is `xs.sort()`** — in place, `mut` receiver, no allocation, **not stable**, over
+`where t: Ord` (so floats are refused, as `min`/`max` refuse them). It is `quick_sort`, an
+introsort: median-of-three Hoare quicksort, insertion sort under 16 elements, and a fall
+to `heap_sort` once partition depth passes 2·log2(n), so no input is quadratic. Both are
+ordinary Lyra in `std/prelude/array.lyra`, every compare a `compare` call through the
+bound, every swap a tuple assignment. A stable or allocating `sorted` is not written.
+
 ## HashMap
 
 `std.collections` (`lyra/std/collections/hashmap.lyra`) is `HashMap<k, v>`, ordinary Lyra
@@ -205,10 +212,9 @@ the raw integer. There is no `Eq` bound because `==` works on a bare type variab
 `let _ = m.remove(k)` discards it. Constructors are bare (`hashmap_new`,
 `hashmap_with_capacity`) and take their type arguments from the annotation or a turbofish.
 
-Three things in the file are workarounds for open compiler bugs (see `lyra/todo.md`,
-Known bugs, 09/06) and must not be "tidied": the parameter named `new_entry` rather than
-`entry`, the `Maybe<v>` annotations on `previous`/`removed`, and `hash_u128` sitting above
-the impls that call it.
+Two things in the file are workarounds for open compiler bugs (see `lyra/todo.md`,
+Known bugs, 09/06) and must not be "tidied": the `Maybe<v>` annotations on
+`previous`/`removed`, and `hash_u128` sitting above the impls that call it.
 
 ## Ranges
 
