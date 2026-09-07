@@ -192,7 +192,21 @@ The predicate is narrower than "managed": a `[]T`, a `shared` aggregate with a w
 introsort: median-of-three Hoare quicksort, insertion sort under 16 elements, and a fall
 to `heap_sort` once partition depth passes 2·log2(n), so no input is quadratic. Both are
 ordinary Lyra in `std/prelude/array.lyra`, every compare a `compare` call through the
-bound, every swap a tuple assignment. A stable or allocating `sorted` is not written.
+bound, every swap a tuple assignment.
+
+**`xs.sorted()` is the stable copy**: `pure`, answers a fresh `[]t`, leaves `xs` alone,
+and keeps equal elements in their original order, so sorting by a second key sorts by
+both. Bottom-up merge sort (insertion-sorted runs of 16, then merged) over a scratch
+buffer, so it allocates twice. It is one function by necessity: a helper taking a
+`mut []t` is an impure call and `pure` refuses it even on a buffer the caller owns,
+while mutating a local is fine — the same line `HashMap.keys` walks with its local
+`push`. The two buffers trade roles with `(src, dst) = (dst, src)`.
+
+**A destructuring `let`'s names own their values** (09/07). `let (x, y) = (b, a)`
+retains each managed leaf and frames it, where a match arm's or an `if let`'s names are
+borrows of a value the statement keeps alive. A `let`'s names outlive the statement and
+the value is usually a temporary released at its end, so the borrow dangled; a literal
+string hid it, since an immortal box's release is a no-op. `let x = t.0` always owned.
 
 ## HashMap
 
