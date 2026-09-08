@@ -234,6 +234,29 @@ the raw integer. There is no `Eq` bound because `==` works on a bare type variab
 `let _ = m.remove(k)` discards it. Constructors are bare (`hashmap_new`,
 `hashmap_with_capacity`) and take their type arguments from the annotation or a turbofish.
 
+## Lazy Sequences
+
+A `gen` function yields into a **`Seq<t>`**, and every combinator is ordinary Lyra in
+`std/prelude/seq.lyra` (`seq`, `map`, `filter`, `take`, `take_while`, `to_array`, `sum`,
+`count`, `first`). **Status: type-checked, not lowered** — `lyrac build` refuses a `gen`
+function by name until the stage-1 lowering in `lyra/todo.md` lands.
+
+- **`Seq<t>` is compiler-known by name and declared nowhere.** A sequence has no
+  constructors and no fields a program may name, so there is nothing to write down. A
+  program's own `Seq` declaration wins over it, as any declaration wins over an ambient
+  name.
+- **A `gen` function must say `-> Seq<t>`**; its body is a void body, `yield e` is void and
+  checks `e` against `t`, and `yield from s` takes anything a loop walks. `yield from
+  0..<3` needs parentheses around the range for now.
+- **Two primitive consumers**, `for-in` and the comprehension; a `Seq` is their fourth
+  source beside arrays, strings and ranges. Brackets are how a sequence becomes an array —
+  there is no `collect`.
+- **`xs.seq()` enters the lazy world**; the eager `map`/`filter` on `[]t` stay as they are,
+  the two coexisting under receiver-keyed overloading. The element type is the whole type:
+  every stage of a chain is `Seq<t>`.
+
+`examples/primes.lyra` is the target program.
+
 ## Ranges
 
 Four end operators, two axes: `..<` `..<=` ascend, `..>` `..>=` descend; `..<` `..>` exclude the end bound, `..<=` `..>=` include it. An optional step follows a colon (`0..<10:2`) and is a **magnitude** — a negative step is an error, because the operator already says which way the range runs. A step of zero or less that is only knowable at **run time** traps (`lyra: range step must be positive`) rather than spinning: provable → compile error, otherwise → trap. A comprehension over the same degenerate step yields an empty array instead, since its count is computed up front.
