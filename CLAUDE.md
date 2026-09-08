@@ -190,9 +190,17 @@ The predicate is narrower than "managed": a `[]T`, a `shared` aggregate with a w
 **Sorting is `xs.sort()`** — in place, `mut` receiver, no allocation, **not stable**, over
 `where t: Ord` (so floats are refused, as `min`/`max` refuse them). It is `quick_sort`, an
 introsort: median-of-three Hoare quicksort, insertion sort under 16 elements, and a fall
-to `heap_sort` once partition depth passes 2·log2(n), so no input is quadratic. Both are
-ordinary Lyra in `std/prelude/array.lyra`, every compare a `compare` call through the
-bound, every swap a tuple assignment.
+to `heap_sort` once partition depth passes 2·log2(n), so no input is quadratic. All of it
+is ordinary Lyra in `std/prelude/array.lyra`, every swap a tuple assignment.
+
+**The comparator forms are the core**: `sort_by(cmp)` and the stable `sorted_by(cmp)`
+take a `(t, t) -> Ordering` and no bound, which is how floats, one field, or a reversed
+order are sorted. The `Ord` forms are one-line delegations passing
+`pure (a: t, b: t) => a.compare(b)`, so each algorithm exists once. That lambda is spelled
+in full for two reasons, both open gaps (`lyra/todo.md`, Known bugs 09/07): a lambda
+argument's parameters are not elaborated from a *generic* callee's parameter type, and a
+lambda calling a bound method is charged impure where the same call written directly in
+`pure` code is not.
 
 **`xs.sorted()` is the stable copy**: `pure`, answers a fresh `[]t`, leaves `xs` alone,
 and keeps equal elements in their original order, so sorting by a second key sorts by
