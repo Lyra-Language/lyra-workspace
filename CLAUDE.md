@@ -238,15 +238,20 @@ the raw integer. There is no `Eq` bound because `==` works on a bare type variab
 
 A `gen` function yields into a **`Seq<t>`**, and every combinator is ordinary Lyra in
 `std/prelude/seq.lyra` (`seq`, `map`, `filter`, `take`, `take_while`, `to_array`, `sum`,
-`count`, `first`). **Status: type-checked, not lowered** — `lyrac build` refuses a `gen`
-function by name until the stage-1 lowering in `lyra/todo.md` lands.
+`count`, `first`). **A sequence has no representation: it is lowered at its consumer.**
+`for x in xs.seq().filter(p).map(f)` is one fused loop with no allocation, a terminal
+like `sum` is inlined at its call, and no sequence function is ever emitted. The cost
+is that a sequence cannot be *held*: `let s = g()` is refused by the backend, as is a
+sequence used as a value — write the chain where it is consumed, or materialize it with
+brackets. `zip` needs two producers interleaved and waits for stage 2.
 
 - **`Seq<t>` is compiler-known by name and declared nowhere.** A sequence has no
   constructors and no fields a program may name, so there is nothing to write down. A
   program's own `Seq` declaration wins over it, as any declaration wins over an ambient
   name.
 - **A `gen` function must say `-> Seq<t>`**; its body is a void body, `yield e` is void and
-  checks `e` against `t`, and `yield from s` takes anything a loop walks. `yield from
+  checks `e` against `t`, and `yield from s` takes anything a loop walks — though only
+  another sequence lowers today; over an array or range write the loop. `yield from
   0..<3` needs parentheses around the range for now.
 - **Two primitive consumers**, `for-in` and the comprehension; a `Seq` is their fourth
   source beside arrays, strings and ranges. Brackets are how a sequence becomes an array —
