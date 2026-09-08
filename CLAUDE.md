@@ -226,9 +226,9 @@ the raw integer. There is no `Eq` bound because `==` works on a bare type variab
 `let _ = m.remove(k)` discards it. Constructors are bare (`hashmap_new`,
 `hashmap_with_capacity`) and take their type arguments from the annotation or a turbofish.
 
-Two things in the file are workarounds for open compiler bugs (see `lyra/todo.md`,
-Known bugs, 09/06) and must not be "tidied": the `Maybe<v>` annotations on
-`previous`/`removed`, and `hash_u128` sitting above the impls that call it.
+One thing in the file is a workaround for an open compiler bug (see `lyra/todo.md`,
+Known bugs, 09/06) and must not be "tidied": `hash_u128` sitting above the impls that
+call it.
 
 ## Ranges
 
