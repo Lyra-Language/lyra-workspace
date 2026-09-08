@@ -459,7 +459,20 @@ cannot be opened, the bytes taken as UTF-8 without validation exactly as `read_l
 takes libc's. File descriptors rather than `FILE *`, because a raw pointer cannot be
 tested for null and an integer can be compared with -1. `open` is declared variadic,
 since it is one in C and a variadic call's ABI differs. `unsafe` appears in that file so
-it need not appear at a call site, which is `std.ffi`'s arrangement.
+it need not appear at a call site, which is `std.ffi`'s arrangement. `read_stdin()` is
+the same file read from a pipe, and shares the chunked reader.
+
+**Writing is `write_file(path, contents) -> bool`**, over **`creat`** rather than `open`
+with flags — and that is a portability rule rather than a shortcut. `O_RDONLY` is 0 on
+every target, which is why reading needs no more; every other flag differs, measured
+macOS against Linux: `O_CREAT` 512 vs 64, `O_TRUNC` 1024 vs 512, `O_APPEND` 8 vs 1024.
+A constant written down would not merely be wrong on the other platform, it would name a
+*different flag* that opens successfully and does something else. `creat(path, mode)` is
+defined as `open(path, O_WRONLY|O_CREAT|O_TRUNC, mode)` and carries no number to get
+wrong. Every write loops, since `write` may take fewer bytes than it was offered.
+**There is no `append_file`**: appending has no flagless spelling, so it waits for a
+program that wants it and for a per-target constant the compiler supplies — the way
+`tui.go` supplies `TIOCGWINSZ`. `examples/todo.lyra` is the shape.
 
 ## The Terminal
 
