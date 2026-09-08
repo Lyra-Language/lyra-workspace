@@ -53,7 +53,7 @@ git-lfs is **not** a prerequisite: `tree-sitter-lyra`'s generated `src/parser.c`
 LEAKS=1 ./asan.sh         # also enable LeakSanitizer (expect known-accepted noise)
 ```
 
-**Two things it is for.** It catches (a) genuine memory faults, and (b) **invalid IR that modern clang cannot even diagnose**: Debian's older clang still uses *typed pointers*, so it rejects a function-type mismatch that Apple clang 21's opaque pointers make indistinguishable. It is **not** the fix for ASan missing memory faults — that was missing `sanitize_address` instrumentation, fixed in the harness (see `lyra/CLAUDE.md`'s backend-testing section). The whole suite passes on Linux.
+**Two things it is for.** It catches (a) genuine memory faults, and (b) **invalid IR that modern clang cannot even diagnose**: the container's clang (Debian's `clang-15`, pinned — 14 cannot split a coroutine and 16 dropped typed pointers) still uses *typed pointers*, so it rejects a function-type mismatch that Apple clang 21's opaque pointers make indistinguishable. It is **not** the fix for ASan missing memory faults — that was missing `sanitize_address` instrumentation, fixed in the harness (see `lyra/CLAUDE.md`'s backend-testing section). The whole suite passes on Linux.
 
 It **clears the container's Go build cache when the generated parser changes**, keyed on the parser's size+mtime. Go does not hash `#include`d sources, so without this a regenerated `parser.c` leaves the compiled-parser object stale and the suite runs against the *old* grammar — silently, and only in the container, which reads as a platform difference. It also **preflights** that ASan actually links and runs, and fails hard if not: Debian's `clang` package does not pull in `libclang-rt-dev`, and without it every ASan test *skips*.
 
@@ -237,13 +237,16 @@ the raw integer. There is no `Eq` bound because `==` works on a bare type variab
 ## Lazy Sequences
 
 A `gen` function yields into a **`Seq<t>`**, and every combinator is ordinary Lyra in
-`std/prelude/seq.lyra` (`seq`, `map`, `filter`, `take`, `take_while`, `to_array`, `sum`,
-`count`, `first`). **A sequence has no representation: it is lowered at its consumer.**
-`for x in xs.seq().filter(p).map(f)` is one fused loop with no allocation, a terminal
-like `sum` is inlined at its call, and no sequence function is ever emitted. The cost
-is that a sequence cannot be *held*: `let s = g()` is refused by the backend, as is a
-sequence used as a value — write the chain where it is consumed, or materialize it with
-brackets. `zip` needs two producers interleaved and waits for stage 2.
+`std/prelude/seq.lyra` (`seq`, `map`, `filter`, `take`, `take_while`, `zip`, `to_array`,
+`sum`, `count`, `first`). **Consumed where it is written, a sequence has no
+representation**: `for x in xs.seq().filter(p).map(f)` is one fused loop with no
+allocation, and a terminal like `sum` is inlined at its call. **Held as a value** — a
+binding, an argument, a field — it is a cursor over an LLVM coroutine: `s.next()` steps
+it (a `mut` receiver, like `push`), a copy shares the cursor, and the last reference
+destroys the coroutine and whatever it still held. `zip` is prelude Lyra over `next()`.
+Still refused, by name: a plain function returning a sequence from a block body, a lambda
+literal inside a `gen` used as a value, a `mut` parameter on one, and `yield from` over
+anything but a sequence.
 
 - **`Seq<t>` is compiler-known by name and declared nowhere.** A sequence has no
   constructors and no fields a program may name, so there is nothing to write down. A
@@ -253,6 +256,10 @@ brackets. `zip` needs two producers interleaved and waits for stage 2.
   checks `e` against `t`, and `yield from s` takes anything a loop walks — though only
   another sequence lowers today; over an array or range write the loop. `yield from
   0..<3` needs parentheses around the range for now.
+- **A sequence value needs a C compiler that splits coroutines: clang 15 or later.** An
+  older one runs no coroutine pass on IR input and crashes in code generation, so `lyrac`
+  probes its compiler once and refuses by name, keeping the `.ll`; the backend tests skip.
+  The Linux container pins Debian's `clang-15` for this reason.
 - **Two primitive consumers**, `for-in` and the comprehension; a `Seq` is their fourth
   source beside arrays, strings and ranges. Brackets are how a sequence becomes an array —
   there is no `collect`.

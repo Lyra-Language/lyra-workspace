@@ -26,8 +26,16 @@ FROM golang:1.26-bookworm
 # the run goes green having checked nothing — the exact vacuous pass this image exists to
 # rule out. asan.sh preflights the same probe so a regression here is an error, not a skip.
 #
-# The unversioned metapackage tracks whatever clang version Debian defaults to, so this
-# stays correct when the base image moves rather than pinning a version that will rot.
+# **clang-15, pinned, and made the `clang` on PATH.** Debian bookworm defaults to clang 14,
+# which cannot split an LLVM coroutine from IR input at all — no coroutine passes run, and
+# instruction selection crashes on the intrinsics — while a sequence held as a value
+# (`std/prelude/seq.lyra`, backend/llvm/seq_coro.go) is one. Those tests would self-skip
+# under 14, and this is the one environment whose job is not to skip. 15 still uses typed
+# pointers when handed typed IR (verified 09/08: the deliberate mismatch below the coroutine
+# probe was reported), so the container keeps the property it exists for; 16 dropped typed
+# pointers, which is why the pin is not "the newest available". Its sanitizer runtime ships
+# inside the package, unlike 14's, so no separate runtime package is needed for it — the
+# preflight in asan.sh is what notices if that ever changes.
 # zlib1g-dev is for `examples/zlib.lyra`, the FFI's **real-library** proof: the vendored C
 # fixture shows the ABI is self-consistent across a boundary this project wrote both sides
 # of, and only a library nobody wrote for Lyra shows it matching a convention it had to obey
@@ -35,7 +43,8 @@ FROM golang:1.26-bookworm
 # the round-trip test self-skips — and why it must not skip *here*, the one environment
 # whose job is to catch what macOS does not.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends clang libclang-rt-dev zlib1g-dev \
+    && apt-get install -y --no-install-recommends clang-15 zlib1g-dev \
+    && ln -s /usr/bin/clang-15 /usr/bin/clang \
     && rm -rf /var/lib/apt/lists/*
 
 # CGO compiles the ~110 MB generated parser.c. gcc is the base image's default and the
