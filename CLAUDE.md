@@ -234,10 +234,6 @@ the raw integer. There is no `Eq` bound because `==` works on a bare type variab
 `let _ = m.remove(k)` discards it. Constructors are bare (`hashmap_new`,
 `hashmap_with_capacity`) and take their type arguments from the annotation or a turbofish.
 
-One thing in the file is a workaround for an open compiler bug (see `lyra/todo.md`,
-Known bugs, 09/06) and must not be "tidied": `hash_u128` sitting above the impls that
-call it.
-
 ## Ranges
 
 Four end operators, two axes: `..<` `..<=` ascend, `..>` `..>=` descend; `..<` `..>` exclude the end bound, `..<=` `..>=` include it. An optional step follows a colon (`0..<10:2`) and is a **magnitude** — a negative step is an error, because the operator already says which way the range runs. A step of zero or less that is only knowable at **run time** traps (`lyra: range step must be positive`) rather than spinning: provable → compile error, otherwise → trap. A comprehension over the same degenerate step yields an empty array instead, since its count is computed up front.
@@ -411,6 +407,24 @@ Output is `print`/`println`, polymorphic over the printable scalars. **Input is 
 `Maybe`, not `string`, because EOF must be distinguishable from a blank line — both are `""` otherwise, so the natural read loop never terminates once stdin closes. Its companion `parse_i64` (`(self: string) -> Maybe<i64>`, so `line.parse_i64()`) is strict: `None` for a blank line, a lone sign, trailing garbage, surrounding whitespace, or a value outside the i64 range. Out-of-range is a `None` rather than an overflow trap — parsing is where a program meets input it did not choose.
 
 **The division of labour between them is the rule to follow when adding more.** `read_line` is a compiler builtin because it *has* to be — the line comes from libc and Lyra has no FFI. `parse_i64` is ordinary Lyra in `std/prelude/parse.lyra` because it can be. Anything expressible in the language goes in the prelude; the builtin registry stays whatever is genuinely primitive.
+
+**The program's arguments are `program_args() -> []string`**, the program's own name at
+index 0 as in C. It is prelude Lyra over two builtins, `program_arg_count()` and
+`program_arg(i)`, which exist because argv lives only in the C runtime's `main`: `main`
+is emitted as `main(argc, argv)` and stashes both in module globals before anything
+else runs. `program_arg(i)` copies argv[i] into a fresh string and traps outside
+`0..<count`, as an index does. Both carry EffectInput — the arguments never change during
+a run, but a `det` function reading them is exactly as unreproducible as one reading
+stdin. Flag parsing is the program's own loop over the array; `examples/word_freq` is
+the shape.
+
+**Reading a file is `std.io`'s `read_file(path) -> Maybe<string>`**, ordinary Lyra over
+three `extern`s (`open`, `read`, `close`) — the whole file as one string, `None` when it
+cannot be opened, the bytes taken as UTF-8 without validation exactly as `read_line`
+takes libc's. File descriptors rather than `FILE *`, because a raw pointer cannot be
+tested for null and an integer can be compared with -1. `open` is declared variadic,
+since it is one in C and a variadic call's ABI differs. `unsafe` appears in that file so
+it need not appear at a call site, which is `std.ffi`'s arrangement.
 
 ## The Terminal
 
