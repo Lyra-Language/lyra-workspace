@@ -644,7 +644,7 @@ reinterprets whatever bytes are there. Every rule below is that one fact restate
 A union crosses the boundary **by value or by pointer**, as a struct does — see
 *Aggregates at the C Boundary*.
 
-`examples/sdl3.lyra` is the proof: it pushes an SDL user event, polls it back, reads the
+`examples/SDL3/events.lyra` is the proof: it pushes an SDL user event, polls it back, reads the
 tag and then the payload through the union — headless, so it runs with no display.
 
 ## Aggregates at the C Boundary
@@ -670,7 +670,7 @@ reaches disagree sharply:
 `pkg/abi` is the classifier, and it is trusted because it is checked against **clang
 itself** rather than against a table: every shape, every target, both positions. raylib is
 the library that needed it — `DrawCircleV(Vector2, float, Color)` passes two structs by
-value and `GetMousePosition()` returns one — and `examples/raylib.lyra` is the proof.
+value and `GetMousePosition()` returns one — and `examples/raylib/basic.lyra` is the proof.
 
 Two consequences worth knowing. A program only meets this if it passes an aggregate, so
 nothing else changed; and on a target with no classifier the *backend* refuses, naming the
