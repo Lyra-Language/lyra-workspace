@@ -641,11 +641,41 @@ reinterprets whatever bytes are there. Every rule below is that one fact restate
 - **`readonly` and a default value are refused on a member** (`lyra-E072`), and a
   self-referential union is `lyra-E014` as a struct is — its size would be unbounded.
 
-A union crosses the boundary **by pointer**, as a struct does; by value is still
-`lyra-E063`, waiting on the same per-target classifier.
+A union crosses the boundary **by value or by pointer**, as a struct does — see
+*Aggregates at the C Boundary*.
 
 `examples/sdl3.lyra` is the proof: it pushes an SDL user event, polls it back, reads the
 tag and then the payload through the union — headless, so it runs with no display.
+
+## Aggregates at the C Boundary
+
+**A struct, union, tuple or fixed array crosses by value**, classified per target. A
+`data` type does not and never will: its tag exists only in Lyra, so there is no C type
+for those bytes to be — cross with the payload, or with a `struct` matching the C
+declaration.
+
+This was refused until 09/09, and the reason was never layout. Lyra's struct layout has
+matched C's since the FFI landed — the fixture proves `sizeof` and every `offsetof`. What
+was missing is that **passing is a per-target calling convention** LLVM does not supply,
+and getting it wrong links cleanly and computes garbage. The three platforms this project
+reaches disagree sharply:
+
+| C struct | aarch64 | x86-64 SysV |
+|---|---|---|
+| `{float, float}` | `[2 x float]` | `<2 x float>` |
+| `{i32 × 4}` | `[2 x i64]` | `i64, i64` — **two parameters** |
+| `{double × 3}` (24 B) | `[3 x double]`, in registers | memory |
+| `{u8, u8}` | `i64` in, `i16` out | `i16` |
+
+`pkg/abi` is the classifier, and it is trusted because it is checked against **clang
+itself** rather than against a table: every shape, every target, both positions. raylib is
+the library that needed it — `DrawCircleV(Vector2, float, Color)` passes two structs by
+value and `GetMousePosition()` returns one — and `examples/raylib.lyra` is the proof.
+
+Two consequences worth knowing. A program only meets this if it passes an aggregate, so
+nothing else changed; and on a target with no classifier the *backend* refuses, naming the
+target, rather than guessing — `lyrac check` deliberately gives the same answer on every
+machine.
 
 ## Naming a C Symbol
 
