@@ -605,6 +605,63 @@ would be a way to write through an immutable string.
 
 A literal *is* a postfix head, so `"abc".len()`, `[1, 2, 3].len()`, `["x"; 3].join("-")` and `1.wrapping_add(2)` all parse — and so is a **constructor call**, which is what makes `Some(1).unwrap_or(0)` parse. The repeat form joined on 08/28, and by *moving* to the head list rather than being added to both it took the parser **down** 23 states: a kind must have exactly one derivation path, so a move removes one where an addition would cost. That one did not until 08/22: a constructor call was reachable only as a literal, so the juxtaposition rule read `Some` as applied to `(1).unwrap` and left `_or(0)` to start a statement. A binding receiver worked, which is why every program written before then compiled.
 
+## Unions
+
+`union` declares a **C union**: one block of storage its members read several ways. It
+exists for the FFI, where it is `SDL_Event` and every "tag plus payload" C API.
+
+**It is not a `data` type, and the difference is one machine word.** A `data` type is a
+*tagged* union — it carries a discriminant, which is what makes `match` on it safe. A C
+union is untagged: nothing records which member was last written, so reading any other one
+reinterprets whatever bytes are there. Every rule below is that one fact restated.
+
+- **Every member sits at offset 0**; the size is the largest member's rounded up to the
+  alignment, and the alignment is the largest member's. `SDL_Event` is 128 bytes because
+  it declares a `Uint8 padding[128]` member, not because any payload is that large — a
+  union sized from its biggest *real* member would be 40, and `SDL_PollEvent` would write
+  88 bytes past the caller's slot.
+- **Reading a member is `unsafe`** (`lyra-E011`, the same diagnostic `&x` draws). This is
+  why it is its own keyword rather than `@union` on a `struct`: behind an attribute the
+  read would be spelled exactly like a safe struct field access, and the language already
+  refused that trade once when it kept pointer arithmetic a named method rather than
+  `p[i]`.
+- **A literal names exactly one member** — `Ev { kind: 7 }` — since that is how many a
+  union holds. **The rest of the storage is zeroed**, which C does not promise: an
+  indeterminate byte makes a wrong read depend on what the previous call left on the
+  stack, and one store makes it wrong the same way every time.
+- **Every member must have a C layout** (`lyra-E071`), which is a *wider* rule than
+  `lyra-E063`'s: that one asks whether a type can cross a function boundary **by value**
+  and refuses every aggregate, while this asks whether it has a **layout** — so an array
+  or a struct member is admitted, and must be, since that is what a C union is made of.
+  It is also what makes the ownership walk sound: no FFI-safe type is managed, so a union
+  owns nothing and `eachComponent` yields nothing for one.
+- **A union has no equality** (`lyra-E072`). Structural comparison would have to pick a
+  member, and the type is precisely what does not record which is live; C refuses `==` on
+  a union for the same reason. Read the member you know is live and compare that.
+- **`readonly` and a default value are refused on a member** (`lyra-E072`), and a
+  self-referential union is `lyra-E014` as a struct is — its size would be unbounded.
+
+A union crosses the boundary **by pointer**, as a struct does; by value is still
+`lyra-E063`, waiting on the same per-target classifier.
+
+`examples/sdl3.lyra` is the proof: it pushes an SDL user event, polls it back, reads the
+tag and then the payload through the union — headless, so it runs with no display.
+
+## Naming a C Symbol
+
+**`@symbol("SDL_PollEvent")`** on an `extern` names the C symbol, leaving the Lyra name to
+Lyra's rules. Without it the extern's own name *is* the symbol, which works only where C
+agrees with Lyra's lexer: zlib's `crc32` and `compress` do, and every SDL entry point —
+`SDL_CreateWindow`, `SDL_PollEvent` — does not, since a Lyra `identifier` is
+lowercase-leading. So SDL3 was unbindable for a reason that had nothing to do with unions.
+
+Rust spells this `#[link_name]` and C# `EntryPoint`. **One per declaration**, unlike
+`@link`: a declaration links against any number of libraries and binds exactly one symbol.
+The text is taken verbatim — it is the linker's name, and anything the compiler did to it
+would be a mangling the header does not know about. The backend deduplicates by the
+**symbol**, not the Lyra name, so two Lyra names for one C function collapse to one
+`declare`.
+
 ## Raw Pointers
 
 `&x` takes one, `&mut x` takes a writable one, `p^` reads through it and `p^ = v` writes.
@@ -644,9 +701,44 @@ over the primitive, so `unsafe` appears once in the standard library instead of 
 use. It does not make the pointer
 *valid*; a wrong length checks against the wrong number.
 
-There is still **no comparison and no null**, and no way to make a pointer other than `&`.
-A raw pointer addresses a binding that exists; producing one from an integer is a separate
-feature with its own safety story.
+**`nullptr` is the null pointer, and `==`/`!=` compare two of them.** Both are **safe** —
+no `unsafe` block — and that is the point rather than an oversight: neither dereferences
+anything, and the whole reason the literal exists is to *guard* a deref that does. Marking
+the guard would have put a block around the check protecting the block, so
+`if p != nullptr { unsafe { p^ } }` reads with the keyword on the act that can be wrong.
+`std.ffi`'s `is_null` and `to_maybe` are one line each over them, and neither is marked.
+
+It exists for the FFI. A C function answering a pointer answers NULL on failure, and that
+convention had no spelling: `open` could report failure as `-1` because a descriptor is an
+integer, but `SDL_CreateWindow` or `getenv` returning nothing was indistinguishable from
+success. `to_maybe` is where the convention becomes the language's own — a `Maybe` cannot
+cross the boundary (lyra-E063), so the `extern` stays a transcription of the C prototype
+and the `Maybe` goes on afterwards, the same division `read_line`/`parse_i64` draws.
+
+Three rules:
+
+- **It is an untyped literal, and the only one with no default.** A context supplies the
+  pointee — an annotation, a parameter, a return type, or the other side of a `==`, which
+  is what makes `p == nullptr` need no annotation anywhere. An integer literal defaults to
+  i64 because a width must be picked and one is expected; no pointee is more plausible
+  than another, so an unpinned `nullptr` is **`lyra-E069`** rather than a guess that would
+  surface as a mismatch at some later call.
+- **It fills a `^T` and a `^mut T` alike.** A null address names no storage, so there is
+  nothing for the mutability rule to protect. A mismatched *pair* pins to the immutable
+  type, which both sides are assignable to.
+- **Equality only.** `<` on two pointers is refused: addresses from separate allocations
+  have no meaningful order, and it is UB in C for the same reason.
+
+**`nullptr` is a keyword in value position only**, so `let nullptr = 5` parses — and the
+binding could never be read, since every later mention lexes as the literal. That is
+**`lyra-E070`**, in the collector, because the grammar cannot refuse it: the same
+context-sensitivity is what deliberately keeps `let type = 5` and `let extern = 5` legal.
+Those leave a *readable* binding; this one does not, which is what earns it a rule. A
+parameter of the name is already a syntax error.
+
+There is still no way to make a pointer other than `&` and `nullptr`. A raw pointer
+addresses a binding that exists, or nothing at all; producing one from an integer is a
+separate feature with its own safety story.
 
 ## A Call's Type Arguments
 
