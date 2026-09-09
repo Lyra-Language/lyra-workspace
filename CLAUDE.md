@@ -644,8 +644,9 @@ reinterprets whatever bytes are there. Every rule below is that one fact restate
 A union crosses the boundary **by value or by pointer**, as a struct does — see
 *Aggregates at the C Boundary*.
 
-`examples/SDL3/events.lyra` is the proof: it pushes an SDL user event, polls it back, reads the
-tag and then the payload through the union — headless, so it runs with no display.
+`TestExec_UnionAgainstSDL3` is the proof: it pushes an SDL user event, polls it back, and
+reads the tag and then the payload through the union — headless, so it needs no display,
+and it skips where SDL3 is not installed.
 
 ## Aggregates at the C Boundary
 
