@@ -706,8 +706,14 @@ Four rules:
 - **`Maybe<Sound>` carries a `Sound`'s obligation.** Acquiring a foreign resource can
   fail, so every acquisition in a binding module answers a `Maybe` — tracking only the
   bare type would leave the check silent on the one shape it exists for. Unwrapping is
-  not releasing: the `match` arm that can see the value is the arm that must discharge
-  it, and that is where the warning lands.
+  not releasing: the alternative that can see the value is the one that must discharge
+  it, and that is where the warning lands. All four unwrapping constructs are tracked —
+  a `match` arm, `if let`, `let … else` and a destructuring `let` — including the shape
+  that acquires and unwraps at once (`let Some(v) = load_sound(p) else { return }`). A
+  pattern binding **more than one** name is not tracked, since nothing says which name
+  the obligation went to.
+- **Reading a field is a borrow.** `w.frame_count` looks at a resource without handing it
+  anywhere, so the obligation stays; only a whole-value mention escapes.
 - **A warning, not an error.** The analysis under-reports by construction (a release
   down any one branch counts), and there is no `#[allow]` in this language — an error
   with no escape hatch would have no answer for a resource deliberately held until the
