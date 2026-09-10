@@ -678,6 +678,48 @@ nothing else changed; and on a target with no classifier the *backend* refuses, 
 target, rather than guessing — `lyrac check` deliberately gives the same answer on every
 machine.
 
+## Releasing a Foreign Resource
+
+**`@must_release(unload_sound)` on a `struct`** says a value of that type names a resource
+Lyra does not own, and names the call that gives it back. A binding of such a type that
+goes out of scope without that call is **`lyra-W022`**.
+
+**Lyra has no destructors and is not getting any**, which is what makes the attribute the
+answer rather than a stopgap. Three of the language's own commitments each rule one out:
+a destructor is a call at a point with no syntax, and `pure`/`det` are promises a caller
+*reads* — a `pure` function holding a `Sound` would run an `AllEffects` foreign call at a
+closing brace; under Perceus the last release is a data-flow fact, so the run point could
+be in another function and would not be RAII anyway; and putting a Lyra `drop_fn` on
+memory raylib owns is the ownership crossing the FFI refuses in both directions. So the
+release call stays the program's to write, and this is what notices when it was not
+written. The reasoning is recorded in full in `lyra/COMPLETED.md` (09/09).
+
+Four rules:
+
+- **A borrow is not a discharge.** `play_sound(s)` leaves the obligation where it was;
+  only the named function discharges it. Were any call to count, the commonest form of
+  the bug — load it, play it, forget to unload it — would be the one shape that never
+  reported. What tells them apart is **`own`**, which the language already has and
+  already means this: passing to an `own` parameter is an escape, every other mode is a
+  borrow. Returning the value is an escape too, and so is storing it anywhere this
+  cannot follow.
+- **`Maybe<Sound>` carries a `Sound`'s obligation.** Acquiring a foreign resource can
+  fail, so every acquisition in a binding module answers a `Maybe` — tracking only the
+  bare type would leave the check silent on the one shape it exists for. Unwrapping is
+  not releasing: the `match` arm that can see the value is the arm that must discharge
+  it, and that is where the warning lands.
+- **A warning, not an error.** The analysis under-reports by construction (a release
+  down any one branch counts), and there is no `#[allow]` in this language — an error
+  with no escape hatch would have no answer for a resource deliberately held until the
+  process exits.
+- **A `struct` only.** That is the shape a C handle takes. A `data` type is Lyra's own
+  tagged union, so marking one would claim a Lyra-managed value is foreign; a `newtype`
+  is the plausible extension (`newtype Fd = i32`) and waits on the grammar letting
+  `constrained_type` carry an attribute.
+
+`bindings/raylib`'s `Sound` and `Wave` are marked, which is what the feature was built
+for.
+
 ## Naming a C Symbol
 
 **`@symbol("SDL_PollEvent")`** on an `extern` names the C symbol, leaving the Lyra name to
