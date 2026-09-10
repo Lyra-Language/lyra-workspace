@@ -95,6 +95,15 @@ Integers: `i8`, `i16`, `i32`, `i64`, `i128`, `u8`, `u16`, `u32`, `u64`, `u128`. 
 Bitwise/shift on integers: `&`, `|`, `~` (xor), `<<`, `>>`, prefix `~` (complement), plus the five compound assignments. **Xor is `~`, not `^`** — `^` is taken by raw-pointer types (`^T`) and postfix deref (`ptr^`). Precedence is not C's: bitwise binds *tighter than comparison* (so `flags & MASK == 0` groups as a human reads it) and looser than arithmetic, with shifts above addition. An out-of-range shift amount **traps**. Integers only — no float operand at any width.
 
 Floats: `f16`, `f32`, `f64` (no bare `float` keyword; untyped float literals default to `f64`).
+
+**Narrowing a float is allowed and rounds to nearest** — `f32(x)` on an f64, `f16(x)` on an
+f32 — which is the same rule integer narrowing follows: `u8(x)` truncates and is permitted,
+`u8(256)` is not. There is deliberately no named conversion here, because there is nothing
+for a name to disambiguate: `floor`/`ceil`/`round` exist for float→**int** because rounding
+*mode* is a real choice, while float→float has only IEEE's round-to-nearest-even. What is
+refused is a compile-time constant that would **become infinity** (`f32(1.0e40)`,
+`f16(70000.0)`); precision loss at any magnitude is not an error, since a narrower float
+existing at all is the program asking for one.
 Other: `bool`, `string`, `rune` (a Unicode code point, i32).
 
 Compiler-internal, no syntax: `never` — the bottom type, the result of `panic(msg)`. Assignable to every type (nothing is assignable to it), which lets a diverging expression sit in value position: `match m { Some(v) => v, None => panic("…") }`. `panic` is EffectNone, so `pure`/`det`/`noalloc` may all call it.
@@ -156,7 +165,7 @@ Integer `+ - * /` **trap** on overflow. The three explicit alternatives are buil
 
 All of them are pure and allocate nothing (a `Maybe` of a scalar is an inline union), so they are usable from `pure noalloc` code.
 
-**A literal that cannot hold its value is a compile error in every position** (`lyra-E048` for patterns): a match arm's `300` on a u8 scrutinee, a range-pattern bound, a `Some(300)` payload on `Maybe<u8>`, a value outside a newtype's range constraint, and a return-position `() -> u8 => 300` are all refused rather than truncated. Everything in these positions is a compile-time constant by grammar. One grace: an exclusive range end names a position, so `0..<256` on a u8 is legal and `0..<257` is not.
+**A literal that cannot hold its value is a compile error in every position** — **floats included**, as of 09/10; before that a float literal too large for its target was silently `inf` in every one of them (`lyra-E048` for patterns): a match arm's `300` on a u8 scrutinee, a range-pattern bound, a `Some(300)` payload on `Maybe<u8>`, a value outside a newtype's range constraint, and a return-position `() -> u8 => 300` are all refused rather than truncated. Everything in these positions is a compile-time constant by grammar. One grace: an exclusive range end names a position, so `0..<256` on a u8 is legal and `0..<257` is not.
 
 ## Arrays
 
