@@ -243,6 +243,27 @@ the raw integer. There is no `Eq` bound because `==` works on a bare type variab
 `let _ = m.remove(k)` discards it. Constructors are bare (`hashmap_new`,
 `hashmap_with_capacity`) and take their type arguments from the annotation or a turbofish.
 
+## JSON
+
+`std.json` (`lyra/std/json.lyra`) is `parse_json(text) -> Result<JsonValue, JsonError>` and a
+handful of accessors, all ordinary Lyra. `JsonValue` is a recursive `data` type — `JsonNull`,
+`JsonBool`, `JsonNumber(f64)`, `JsonString`, `JsonArray([]JsonValue)`,
+`JsonObject([]JsonMember)` — and `JsonError` carries a message and a **byte** offset.
+
+**Every accessor answers something a chain can keep going through.** `field` and `element`
+answer a `Maybe`; `elements` and `members` answer an empty array for anything that is not an
+array or object; `as_number`/`as_int`/`as_text`/`as_bool` answer a `Maybe`. So a document of
+known shape reads as `doc.field("nodes").unwrap_or(JsonNull).elements()`, and one of the wrong
+shape reads as empty rather than trapping.
+
+- **An object keeps its members in order, duplicates included.** `field` answers the last
+  of a repeated name, as JavaScript does.
+- **Numbers are `f64`.** At most 18 significant digits with a decimal exponent within 22
+  convert exactly (one IEEE operation on two exact values); longer ones may be an ulp or two
+  off — there is no big-number arithmetic.
+- **The parser is pure**, threading a byte offset through recursive descent rather than
+  mutating a cursor, since a helper taking `mut` is an impure call `pure` refuses.
+
 ## Lazy Sequences
 
 A `gen` function yields into a **`Seq<t>`**, and every combinator is ordinary Lyra in
@@ -762,6 +783,12 @@ a value in value position and a binding declared in it is scoped to it.
 rule every interior mutation obeys; `p^ = v` requires **p** to be a `^mut T`
 (`lyra-E061`). A `^mut T` may be copied into a `let` and a `^T` may be taken of a `var`, so
 neither implies the other.
+
+**A field or element reached through a pointer is a place too**: `p^.x = v`,
+`p.offset(i)^.y = v`, `p^.n += 1`. The write lands in the pointee, so the question is the
+pointer's type, exactly as for `p^ = v` — the deref nearest the written place must be
+through a `^mut T` (`lyra-E061`), and `pure` charges it as a pointer write. The binding
+rule does not apply: a path through a pointer never reaches the binding that holds it.
 
 **`&mut` on a binding a closure *captured* is `lyra-E024`** — the same error assigning to
 one draws, because it is the same write one spelling further out. A closure captures by
