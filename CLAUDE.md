@@ -763,6 +763,14 @@ rule every interior mutation obeys; `p^ = v` requires **p** to be a `^mut T`
 (`lyra-E061`). A `^mut T` may be copied into a `let` and a `^T` may be taken of a `var`, so
 neither implies the other.
 
+**`&mut` on a binding a closure *captured* is `lyra-E024`** — the same error assigning to
+one draws, because it is the same write one spelling further out. A closure captures by
+value, so the pointer addresses the environment's copy and anything written through it,
+including by a C function handed the pointer, is lost. `&n` is untouched (it cannot write,
+and reading through it sees what the closure sees), and so is a pointer to the lambda's own
+local. The shape to watch for is an **out-parameter taken inside a lending closure** —
+`s.with_cstring((p) => f(p, &mut size))` — where the fix is to take the pointer outside it.
+
 **Only storage has an address**: a binding, a field or an element. `&f()` is `lyra-E059` —
 the temporary stops existing at the end of the statement, so the pointer would dangle
 immediately. `^` on a non-pointer is `lyra-E060`.
