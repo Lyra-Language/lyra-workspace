@@ -205,11 +205,11 @@ is ordinary Lyra in `std/prelude/array.lyra`, every swap a tuple assignment.
 **The comparator forms are the core**: `sort_by(cmp)` and the stable `sorted_by(cmp)`
 take a `(t, t) -> Ordering` and no bound, which is how floats, one field, or a reversed
 order are sorted. The `Ord` forms are one-line delegations passing
-`pure (a: t, b: t) => a.compare(b)`, so each algorithm exists once. That lambda is spelled
-in full for two reasons, both open gaps (`lyra/todo.md`, Known bugs 09/07): a lambda
-argument's parameters are not elaborated from a *generic* callee's parameter type, and a
-lambda calling a bound method is charged impure where the same call written directly in
-`pure` code is not.
+`pure (a, b) => a.compare(b)`, so each algorithm exists once. That lambda was spelled out
+in full — `(a: t, b: t)` — until 09/11, for two reasons that turned out to be one: a
+lambda argument's parameters were not elaborated from a *generic* callee's parameter type,
+and the "impure comparator" error beside it was a consequence of that same failure rather
+than a purity bug. Both closed together; see `lyra/COMPLETED.md`.
 
 **`xs.sorted()` is the stable copy**: `pure`, answers a fresh `[]t`, leaves `xs` alone,
 and keeps equal elements in their original order, so sorting by a second key sorts by
