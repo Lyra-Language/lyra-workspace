@@ -794,6 +794,13 @@ rule every interior mutation obeys; `p^ = v` requires **p** to be a `^mut T`
 (`lyra-E061`). A `^mut T` may be copied into a `let` and a `^T` may be taken of a `var`, so
 neither implies the other.
 
+**`p^ = v` releases the value the slot held**, as `xs[i] = v` does (09/13). That is sound
+because of the first question: every root `&mut` accepts — a `var`, a `let mut`, a `mut` or
+`own` parameter — owns what it holds, and `data_mut()` addresses a box's own elements. A
+**match-arm or `if let` binding** borrows from its scrutinee, so its interior is immutable
+by every spelling: `&mut s` and `h.s = v` on one are refused, as reassigning it already was
+(lyra-E025). Copy it into a binding of its own to mutate it.
+
 **A field or element reached through a pointer is a place too**: `p^.x = v`,
 `p.offset(i)^.y = v`, `p^.n += 1`. The write lands in the pointee, so the question is the
 pointer's type, exactly as for `p^ = v` — the deref nearest the written place must be

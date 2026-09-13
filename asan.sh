@@ -14,12 +14,10 @@
 #   ./asan.sh --rebuild          # force a rebuild of the image
 #   LEAKS=1 ./asan.sh            # also enable LeakSanitizer (see below)
 #
-# Leak detection is OFF by default. Linux ASan enables LeakSanitizer automatically,
-# but the ownership model still leaks *deliberately* in documented places (a managed
-# target reached through a borrowed root, break/continue edges in older paths), so
-# leaving it on would fail the suite for known-accepted behavior and bury the faults
-# this script exists to surface. LEAKS=1 opts in when you are specifically hunting
-# leaks; expect known noise.
+# The container's default is detect_leaks=0, but that governs only a binary run outside
+# the backend's ASan helpers: those set it themselves, and since 09/13 they turn leak
+# detection ON on Linux (asanOptions in pkg/backend/llvm/llvm_leak_test.go), so the suite
+# here fails on a leak exactly as CI does. LEAKS=1 turns it on for everything else too.
 set -euo pipefail
 
 readonly IMAGE=lyra-asan
