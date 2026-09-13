@@ -2,7 +2,7 @@
 
 Development workspace for [Lyra](https://github.com/Lyra-Language), a programming language under active development.
 
-This repository is intentionally thin. It tracks only the workspace-level files — this README, `CLAUDE.md`, `lyra.code-workspace`, and the two setup scripts. The actual code lives in five **independent Git repos** that this repo does *not* track:
+This repo tracks only workspace files — this README, `CLAUDE.md`, `lyra.code-workspace` and the setup scripts. The code lives in five **independent Git repos** (not submodules; nothing pins their commits):
 
 | Directory | Language | Purpose |
 |---|---|---|
@@ -12,11 +12,9 @@ This repository is intentionally thin. It tracks only the workspace-level files 
 | [`lyra-zed-ext/`](https://github.com/Lyra-Language/lyra-zed-ext) | Rust (wasm) | Zed extension — launches the LSP server |
 | [`lyra-website/`](https://github.com/Lyra-Language/lyra-website) | Astro | Public site — dev blog and docs/guides |
 
-They are **not** submodules — nothing here pins their commits, so each moves independently. A fresh clone of this repo gets the docs but none of the code; `setup.sh` / `setup.ps1` fetch the rest.
-
 ## Quick start
 
-### macOS / Linux
+**macOS / Linux**
 
 ```bash
 git clone https://github.com/Lyra-Language/lyra-workspace.git
@@ -24,7 +22,7 @@ cd lyra-workspace
 ./setup.sh
 ```
 
-### Windows (PowerShell)
+**Windows (PowerShell)**
 
 ```powershell
 git clone https://github.com/Lyra-Language/lyra-workspace.git
@@ -32,36 +30,33 @@ cd lyra-workspace
 powershell -ExecutionPolicy Bypass -File .\setup.ps1
 ```
 
-The `-ExecutionPolicy Bypass` is needed because Windows blocks unsigned local scripts by default. To avoid typing it every time, allow scripts for the current session only:
+Windows blocks unsigned local scripts by default, hence `-ExecutionPolicy Bypass`. Alternatively, allow scripts for the current session only:
 
 ```powershell
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 .\setup.ps1
 ```
 
-After either, you should have all five sub-projects checked out beside each other.
+Either way you end up with all five sub-projects side by side.
 
 ## Prerequisites
 
-**Required before running setup:**
+**To clone:** Git — macOS: preinstalled / `brew install git`; Debian/Ubuntu: `apt install git`; Windows: [git-scm.com](https://git-scm.com).
 
-| Tool | Why | macOS | Linux (Debian/Ubuntu) | Windows |
-|---|---|---|---|---|
-| Git | Everything | preinstalled / `brew install git` | `apt install git` | [git-scm.com](https://git-scm.com) |
-
-
-**Needed to build and test, not to clone:**
+**To build and test:**
 
 | Tool | Why |
 |---|---|
 | Go 1.25.4+ | building and testing `lyra/` |
 | A C compiler (clang/gcc) | the parser is CGO; the LLVM backend tests compile and run real binaries |
 | Node.js 22.12+ | `tree-sitter-lyra/` and `lyra-website/` (Astro 7 requires ≥ 22.12) |
-| `rustup` | `lyra-zed-ext/` — Zed builds the extension to wasm and adds the `wasm32-wasip1` target itself |
+| `rustup` | `lyra-zed-ext/` — Zed builds it to wasm and adds `wasm32-wasip1` itself |
+
+Git LFS is **not** required; only checking out a historical commit of `tree-sitter-lyra` (from when `src/parser.c` lived in LFS) needs it.
 
 ## Running setup
 
-Both scripts are idempotent — run them as often as you like. They clone whatever is missing and fetch whatever is already there.
+Both scripts are idempotent: they clone what's missing, fetch what exists, and exit non-zero if any repo had a problem.
 
 | macOS / Linux | Windows | What it does |
 |---|---|---|
@@ -70,28 +65,9 @@ Both scripts are idempotent — run them as often as you like. They clone whatev
 | `./setup.sh --https` | `.\setup.ps1 -Https` | Clone over `https://` instead of `git@` (no SSH key needed) |
 | `./setup.sh --help` | `Get-Help .\setup.ps1` | Usage |
 
-Flags combine: `./setup.sh --pull --https`.
-
-`--https` / `-Https` applies to **new clones only** — a repo you already have keeps whatever remote it is configured with. To switch an existing one, change it yourself with `git -C <repo> remote set-url origin …`.
-
-**`--pull` is deliberately conservative.** It fast-forwards only a repo that is clean and has no local commits. A repo with uncommitted changes, or one that has diverged from its upstream, is reported and left completely untouched — the scripts never merge, rebase, stash, or reset your work.
-
-Typical output:
-
-```
-Lyra workspace — /home/you/lyra-workspace
-remote base: git@github.com:Lyra-Language
-
-tree-sitter-lyra (on main)
-  ✓ up to date with origin/main
-
-lyra (on main)
-  ! 0 ahead, 3 behind origin/main
-    run with --pull to fast-forward
-...
-```
-
-The scripts exit non-zero if any repo had a problem, so they are safe to use in automation.
+- Flags combine: `./setup.sh --pull --https`.
+- `--https` affects **new clones only**; switch an existing repo with `git -C <repo> remote set-url origin …`.
+- `--pull` fast-forwards only a clean repo with no local commits. Dirty or diverged repos are reported and left untouched — never merged, rebased, stashed or reset.
 
 ## Verifying the workspace
 
@@ -101,59 +77,40 @@ go build ./...
 go test ./...
 ```
 
-Then open `lyra.code-workspace` in VS Code to get all five projects in one window.
-
-> Note: `lyra.code-workspace` contains a `lyra.languageServerPath` pointing at a local `lyra-lsp` binary. Change it to wherever you install yours, or remove it to fall back to `lyra-lsp` on your `PATH`.
+Then open `lyra.code-workspace` in VS Code. Its `lyra.languageServerPath` is `${workspaceFolder}/build/lyra-lsp` (what `lyra/build.sh` produces); remove it to use `lyra-lsp` from your `PATH`.
 
 ## Troubleshooting
 
-**Git LFS is no longer required.** `tree-sitter-lyra`'s generated `src/parser.c` used to be ~115 MB and stored in Git LFS, which made `git-lfs` a hard prerequisite — without it the clone died partway through checkout. The grammar's `lambda_expr` rule was rebuilt to stop a parser state explosion (62,663 states → 6,475), taking the file to 12.8 MB of ordinary tracked text. A plain `git clone` is now enough. You only need `git-lfs` to check out a *historical* commit from before that change.
+- **Clone fails with a permission/authentication error** — the scripts default to SSH. Without a GitHub SSH key, use `./setup.sh --https`.
+- **`.\setup.ps1` is "not digitally signed"** — the execution policy; use `powershell -ExecutionPolicy Bypass -File .\setup.ps1`.
+- **"directory exists but is not a Git repo"** — something non-clone is at that path. Move it aside and re-run.
+- **A repo shows "ahead"/"behind" and won't update** — `--pull` protecting your work. Resolve it in that repo (commit, stash, push or merge), then re-run.
+- **`tree-sitter-lyra` `npm run test`/`build` can't find `aarch64-linux-gnu-gcc`** (ARM64 Linux only) — the prebuilt tree-sitter CLI thinks it is cross-compiling. Set `CC` explicitly (add `export CC=gcc` to your profile to persist):
 
-**Clone fails with a permission or authentication error** — the scripts default to SSH (`git@github.com:…`). If you have no SSH key set up for GitHub, use HTTPS instead:
-
-```bash
-./setup.sh --https
-```
-
-**`.\setup.ps1` is "not digitally signed"** — that's the Windows execution policy. Use `powershell -ExecutionPolicy Bypass -File .\setup.ps1`, as in the quick start above.
-
-**"directory exists but is not a Git repo"** — something is sitting at that path that isn't a clone (a leftover folder, a partial download). Move it aside and re-run.
-
-**A repo shows as "ahead"/"behind" and won't update** — that is `--pull` refusing to touch work you might lose. Resolve it yourself in that repo (commit, stash, push, or merge), then re-run.
-
-**`npm run test` / `npm run build` in `tree-sitter-lyra` can't find `aarch64-linux-gnu-gcc`** — on ARM64 Linux only. Nothing is wrong with the grammar. The tree-sitter CLI compiles `src/parser.c` + `src/scanner.c` on the fly using Rust's `cc` crate, and the prebuilt `linux-arm64` CLI binary was itself cross-compiled, so its baked-in host triple differs from its target triple. `cc` reads that as cross-compilation and prefixes the compiler name with the target triple, looking for a cross-toolchain you don't have. Set `CC` explicitly — `cc` uses a plain `CC` verbatim and skips the prefixing:
-
-```bash
-CC=gcc npm run test
-```
-
-Add `export CC=gcc` to your shell profile to make it stick. (Symlinking `gcc` to the prefixed name, or installing the real cross toolchain, work too — the env var is just the cheapest.)
-
-**The parser compile gets killed partway through** — `src/parser.c` is ~12.8 MB, and `cc1` wants real memory to chew through it. On a very small VM this can show up as an OOM kill rather than a compiler error. Give the VM more RAM or add swap. (This was far more likely when the file was ~115 MB, before the grammar's state explosion was fixed.)
+  ```bash
+  CC=gcc npm run test
+  ```
+- **The parser compile is killed partway** — `src/parser.c` is ~15 MB and `cc1` needs real memory; on a small VM that's an OOM kill. Add RAM or swap.
 
 ## Working on Lyra
 
-Each sub-project has its own `README.md` and `CLAUDE.md` with detailed build, test, and architecture notes. Start with [`lyra/`](https://github.com/Lyra-Language/lyra).
+Each sub-project has its own `README.md` and `CLAUDE.md`. Start with [`lyra/`](https://github.com/Lyra-Language/lyra).
 
-One cross-project gotcha worth knowing up front: after editing `tree-sitter-lyra/grammar.js` you must regenerate the parser **and** clear Go's build cache, or tests will silently run against the old grammar. Note the two steps run in different directories:
+After editing `tree-sitter-lyra/grammar.js`, regenerate the parser **and** clear Go's build cache (Go doesn't hash the `#include`d `parser.c`), or tests silently run against the old grammar:
 
 ```bash
 cd tree-sitter-lyra && npx tree-sitter generate
 cd ../lyra && go clean -cache && go test ./...
 ```
 
-The cache step is not optional: the Go binding pulls the grammar in via `#include "../../src/parser.c"`, and Go's build cache does not hash `#include`d files — so a regenerated parser does not invalidate the compiled object on its own.
-
 ## Running the suite on Linux
 
-`./asan.sh` runs the tests in a Debian container. Needs Docker running; nothing else to set up (it mounts the two repos and builds its own image on first use).
+`./asan.sh` runs the tests in a Debian container. Needs Docker; it mounts the repos and builds its image on first use.
 
 ```bash
 ./asan.sh              # the AddressSanitizer suite
 ./asan.sh ./...        # the whole suite, on Linux
-./asan.sh --shell      # poke around inside the container
+./asan.sh --shell      # shell inside the container
 ```
 
-Worth doing before pushing anything that touches the memory model. It catches real memory faults, and also invalid LLVM IR that the newer clang on macOS cannot diagnose at all — Debian's clang still uses typed pointers, so it rejects function-type mismatches that opaque pointers render invisible.
-
-`CLAUDE.md` in this directory explains why, along with the rest of the workspace-level context.
+Run it before pushing memory-model changes: it catches memory faults and invalid LLVM IR that macOS's clang cannot diagnose (Debian's clang still uses typed pointers). See `CLAUDE.md` for details.
