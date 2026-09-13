@@ -179,6 +179,8 @@ All of them are pure and allocate nothing (a `Maybe` of a scalar is an inline un
 
 `[1, 2, 3]` is a fixed-size `[3]T`; the same literal under a `[]T` annotation builds a heap-allocated dynamic array instead — so the two are told apart by what the literal is *used as* rather than by how it is written, and `noalloc` refuses the second, not the first.
 
+**That holds wherever the literal sits** (09/13): a construction's payload (`let m: Maybe<[]i64> = Some([1])`), an element of another literal (`[[1], [2, 3]]` under `[][]i64`, whose lengths may then differ), and an argument to a generic another argument already solved (`m.unwrap_or([])`). A fixed-array *binding* never widens in any of them — it is stack storage, not a literal.
+
 **"Used as" includes being a receiver** (08/28): `[1, 2, 3].map(f)` and `["a", "b"].join("-")` work, because the literal is built in the shape the call asks for — the same rule as the annotation, and the one that already admitted `map([1, 2, 3], f)` in argument position. A fixed-array **binding** is still refused: `let xs = [1, 2, 3]` then `xs.map(f)` names the annotation as the fix, because there the value already exists as a stack `[N]T` and reaching a `[]T` combinator would *widen* it — allocating where nothing asked, invisibly to `noalloc`. That is the line the rule draws: a literal has no prior shape to widen, a binding does. The allocation stays visible either way, since the literal's recorded type becomes the `[]T` it was built as, which is what `noalloc` reads.
 
 An element may be any type but `void`, including an anonymous tuple (`[](i64, string)`), a raw pointer and an anonymous struct, and may carry one allocation or `weak` modifier: `[]shared Node`.
