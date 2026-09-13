@@ -901,6 +901,16 @@ since a lowercase name is a type variable whether or not a `<…>` list introduc
 undeclared return-only one is likelier a typo. Precedence: turbofish beats context, context
 fills only what arguments cannot reach.
 
+## A Generic Declared Inside a Function
+
+`let idf<t> = (a: t) -> t => a` inside a function is a generic like a top-level one — solved
+per call, turbofish and `where` bounds included — and it may capture the enclosing function's
+bindings. It is emitted as **one closure per instantiation** (09/13). Two limits, each
+refused by name: it may not be declared inside a *generic* function, and one that captures a
+binding may not be called from inside another lambda (a captureless one may). Like a
+top-level generic it is not a value: passing `idf` where a function is expected is a type
+error.
+
 ## Calling on a Type Name
 
 There isn't any. `Rng.seeded(42)` is **`lyra-E035`**: Lyra has no type-namespaced associated functions, which is why the prelude's constructors are bare (`rng_seeded`). A trait gets its own message, since `Trait::method(…)` *is* a spelling the language has. Building the feature is open; the diagnostic is not a placeholder for it.
