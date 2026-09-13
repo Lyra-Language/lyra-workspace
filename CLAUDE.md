@@ -149,6 +149,14 @@ analysis, the backend — never see it, and the golden test records the shape. T
 is parsed as an ordinary `tuple_literal` because a second place-tuple rule would be a
 reduce-reduce conflict at every element (the grammar's partition rule).
 
+**The places are the right side's context**, as a plain assignment's place is: `(a, b) =
+(4.0, 0.5)` on f32 places narrows both literals to f32, and `(m, k) = (None, 1)` completes
+the `None`'s instantiation. The desugared `let` has no annotation to carry that, so it
+records the assignments it feeds (`DestructuringDeclStmt.Assigns`) and the typechecker
+reads each place's type from them. An element is narrowed only where its own type is
+assignable to its place, so a mismatch still reaches the place's assignment and is refused
+with the stand-alone message.
+
 An arity mismatch in **any** tuple destructuring is reported once (09/07): the names that
 pair up are bound with their types and the rest with none, so later uses no longer cascade
 into "undefined identifier" — which would have exposed the synthesized names.
