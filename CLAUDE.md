@@ -906,7 +906,8 @@ fills only what arguments cannot reach.
 `let idf<t> = (a: t) -> t => a` inside a function is a generic like a top-level one — solved
 per call, turbofish and `where` bounds included — and it may capture the enclosing function's
 bindings. It is emitted as **one closure per instantiation** (09/13), and it may be declared
-inside a generic function, whose variables its signature and body may mention. A lambda
+inside a generic function — or another local generic — whose variables its signature and body
+may mention, at any depth. A lambda
 calling one captures the closures its declaration built, so a captured `var` is read as it was
 at the declaration — the rule every closure follows. Like a top-level generic it is not a
 value: passing `idf` where a function is expected is a type error.
