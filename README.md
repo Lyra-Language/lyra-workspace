@@ -41,6 +41,8 @@ Either way you end up with all five sub-projects side by side.
 
 ## Prerequisites
 
+**For the formatter probe** (`lyra/examples/lyrafmt/`): the tree-sitter runtime — macOS: `brew install tree-sitter`; Debian/Ubuntu: `apt install libtree-sitter-dev`. Then `lyra/examples/lyrafmt/libs.sh` builds the grammar archive.
+
 **To clone:** Git — macOS: preinstalled / `brew install git`; Debian/Ubuntu: `apt install git`; Windows: [git-scm.com](https://git-scm.com).
 
 **To build and test:**
