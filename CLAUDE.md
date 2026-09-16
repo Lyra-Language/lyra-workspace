@@ -88,7 +88,7 @@ source text
 
 ## Current Development Focus
 
-The typechecker. Open work: `lyra/todo.md`; finished work and reasoning: `lyra/COMPLETED.md`.
+`lyrafmt`, the formatter written in Lyra, as the self-hosting probe — it keeps finding compiler bugs rather than formatter ones. The typechecker is maintenance: exhaustiveness and the purity work are built, and what turns up is a position that accepts a value it should refuse. Detail in `lyra/CLAUDE.md`; open work in `lyra/todo.md`; finished work and reasoning in `lyra/COMPLETED.md`.
 
 ## Testing
 
