@@ -82,6 +82,7 @@ source text
 
 ## Editor Extensions
 
+- **Formatting belongs to neither extension**: `lyra-lsp` implements `textDocument/formatting` by running `lyrafmt` (the formatter written in Lyra, `lyra/examples/lyrafmt/`), which `./build.sh` puts beside it. Both editors get `Format Document` with no client code, and a machine without `lyrafmt` simply has none.
 - **VS Code** (`lyra-vscode-ext/`): `src/extension.ts` starts an LSP client spawning `lyra-lsp` over stdio; path overridable via `lyra.languageServerPath`. Highlighting is a hand-written TextMate grammar.
 - **Zed** (`lyra-zed-ext/`): Rust cdylib for `wasm32-wasip1`. `src/lyra.rs` resolves the server: `lsp.lyra-lsp.binary.path` → `lyra-lsp` on `$PATH` → `build/lyra-lsp` in the worktree. Highlights from tree-sitter via its own `languages/lyra/{highlights,brackets,indents,outline,injections}.scm` — a deliberate sibling of `tree-sitter-lyra/queries/highlights.scm` (different capture names), so **both need updating when the grammar gains a node**. Install via **Install Dev Extension** in Zed; not in the registry.
 
