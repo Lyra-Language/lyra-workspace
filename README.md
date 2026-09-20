@@ -41,7 +41,14 @@ Either way you end up with all five sub-projects side by side.
 
 ## Prerequisites
 
-**For the formatter probe** (`lyra/examples/lyrafmt/`): the tree-sitter runtime — macOS: `brew install tree-sitter`; Debian/Ubuntu: `apt install libtree-sitter-dev`. Then `lyra/examples/lyrafmt/libs.sh` builds the grammar archive.
+**For the formatter probe** (`lyra/examples/lyrafmt/`): the tree-sitter runtime, **0.25 or newer** — the generated parser is ABI 15 (`LANGUAGE_VERSION` in `tree-sitter-lyra/src/parser.c`), and an older runtime is found by `pkg-config` and then refuses the grammar at run time. macOS: `brew install tree-sitter`. On Debian and Ubuntu the packaged `libtree-sitter-dev` is 0.20 (bookworm 0.20.7, 24.04 0.20.8) and **too old**, so build it from source, as CI does:
+
+```bash
+curl -fsSL https://github.com/tree-sitter/tree-sitter/archive/refs/tags/v0.25.10.tar.gz | tar xz
+sudo make -C tree-sitter-0.25.10 install PREFIX=/usr/local && sudo ldconfig
+```
+
+Then `lyra/examples/lyrafmt/libs.sh` builds the grammar archive.
 
 **To clone:** Git — macOS: preinstalled / `brew install git`; Debian/Ubuntu: `apt install git`; Windows: [git-scm.com](https://git-scm.com).
 
