@@ -88,7 +88,7 @@ source text
 
 ## Current Development Focus
 
-`lyrafmt`, the formatter written in Lyra, as the self-hosting probe — it keeps finding compiler bugs rather than formatter ones. The typechecker is maintenance: exhaustiveness and the purity work are built, and what turns up is a position that accepts a value it should refuse. Detail in `lyra/CLAUDE.md`; open work in `lyra/todo.md`; finished work and reasoning in `lyra/COMPLETED.md`.
+`lyrafmt`, the formatter written in Lyra, as the self-hosting probe — it keeps finding compiler bugs rather than formatter ones. Beside it, `lyra/examples/SDL3/` grows the SDL3 bindings example by example towards an NES-style game. The typechecker is maintenance: exhaustiveness and the purity work are built, and what turns up is a position that accepts a value it should refuse. Detail in `lyra/CLAUDE.md`; open work in `lyra/todo.md`; finished work and reasoning in `lyra/COMPLETED.md`.
 
 ## Testing
 
