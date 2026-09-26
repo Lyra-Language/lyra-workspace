@@ -47,6 +47,32 @@ RUN apt-get update \
     && ln -s /usr/bin/clang-15 /usr/bin/clang \
     && rm -rf /var/lib/apt/lists/*
 
+# **The tree-sitter runtime**, for the tests that link it: the formatter written in Lyra
+# (`examples/lyrafmt`, the self-hosting probe), the LSP's formatting path that runs it, and
+# the collector written in Lyra over `bindings/treesitter`. All thirteen skip without it —
+# which is how this image ran green while never exercising the self-hosted code at all.
+#
+# **Built from source and pinned, exactly as CI does it** (`lyra/.github/workflows/ci.yml`,
+# "Install the tree-sitter runtime"), never Debian's `libtree-sitter-dev`: the generated
+# parser is ABI 15 and the packaged runtime is far older, so it would satisfy pkg-config,
+# end the skips, and then fail at run time on a version mismatch — worse than skipping.
+# **Three pins move together**: this one, CI's `TREE_SITTER_VERSION`, and the
+# `tree-sitter-cli` that generates the parser (`tree-sitter-lyra/package.json`).
+#
+# The tests compile the grammar archive into a temp dir themselves (as
+# `examples/lyrafmt/libs.sh` does), so the read-only source mount is enough; they find the
+# runtime through pkg-config, and ldconfig is what lets the linked binaries load it.
+ARG TREE_SITTER_VERSION=0.25.10
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends pkg-config make curl ca-certificates \
+    && rm -rf /var/lib/apt/lists/* \
+    && curl -fsSL "https://github.com/tree-sitter/tree-sitter/archive/refs/tags/v${TREE_SITTER_VERSION}.tar.gz" \
+       | tar xz -C /tmp \
+    && make -C "/tmp/tree-sitter-${TREE_SITTER_VERSION}" install PREFIX=/usr/local \
+    && rm -rf "/tmp/tree-sitter-${TREE_SITTER_VERSION}" \
+    && ldconfig \
+    && test "$(pkg-config --modversion tree-sitter)" = "${TREE_SITTER_VERSION}"
+
 # CGO compiles the ~110 MB generated parser.c. gcc is the base image's default and the
 # combination known to work on arm64 Linux; stated explicitly so it cannot drift if the
 # base image ever changes its default.

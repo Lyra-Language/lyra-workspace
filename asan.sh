@@ -115,6 +115,15 @@ if ! docker run --rm "$IMAGE" bash -c \
     (if that fails, the image is missing libclang-rt-dev — see asan.Dockerfile)"
 fi
 
+# The same failure mode, for the tree-sitter runtime: without it the thirteen tests of the
+# self-hosted code (lyrafmt, LSP formatting, the collector in Lyra) skip and the run is
+# green. An image built before the runtime was added to asan.Dockerfile lacks it, and this
+# script reuses an existing image, so a stale one must be an error rather than a quiet skip.
+if ! docker run --rm "$IMAGE" pkg-config --exists tree-sitter >/dev/null 2>&1; then
+  die "the image has no tree-sitter runtime, so the lyrafmt, formatting and collector tests
+    would silently SKIP. Rebuild with: ./asan.sh --rebuild"
+fi
+
 asan_options='abort_on_error=1'
 if [[ "${LEAKS:-0}" == 1 ]]; then
   asan_options="$asan_options:detect_leaks=1"
