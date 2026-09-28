@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Bootstrap the Lyra workspace: clone (or refresh) the six sub-project repos.
+# Bootstrap the Lyra workspace: clone (or refresh) the seven sub-project repos.
 #
 # The sub-projects are independent Git repos and are NOT tracked by the
 # workspace repo (see .gitignore). This script reconstitutes the full tree
@@ -19,14 +19,14 @@ ORG_HTTPS="https://github.com/Lyra-Language"
 
 # Sub-projects, in dependency order (grammar first — the Go module replaces
 # into ../tree-sitter-lyra).
-REPOS="tree-sitter-lyra lyra lyra-vscode-ext lyra-zed-ext lyra-website vega"
+REPOS="tree-sitter-lyra lyra lyra-vscode-ext lyra-zed-ext lyra-website vega sheliak"
 
 USE_HTTPS=0
 DO_PULL=0
 
 usage() {
 	cat <<'EOF'
-Bootstrap the Lyra workspace: clone (or refresh) the six sub-project repos.
+Bootstrap the Lyra workspace: clone (or refresh) the seven sub-project repos.
 
 The sub-projects are independent Git repos and are NOT tracked by the
 workspace repo (see .gitignore). This script reconstitutes the full tree

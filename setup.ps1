@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Bootstrap the Lyra workspace: clone (or refresh) the six sub-project repos.
+    Bootstrap the Lyra workspace: clone (or refresh) the seven sub-project repos.
 
 .DESCRIPTION
     The sub-projects are independent Git repos and are NOT tracked by the
@@ -38,7 +38,7 @@ $OrgHttps = 'https://github.com/Lyra-Language'
 
 # Sub-projects, in dependency order (grammar first - the Go module replaces
 # into ../tree-sitter-lyra).
-$Repos = @('tree-sitter-lyra', 'lyra', 'lyra-vscode-ext', 'lyra-zed-ext', 'lyra-website', 'vega')
+$Repos = @('tree-sitter-lyra', 'lyra', 'lyra-vscode-ext', 'lyra-zed-ext', 'lyra-website', 'vega', 'sheliak')
 
 # --- output helpers -------------------------------------------------------
 
