@@ -2,7 +2,7 @@
 
 Development workspace for [Lyra](https://github.com/Lyra-Language), a programming language under active development.
 
-This repo tracks only workspace files — this README, `CLAUDE.md`, `lyra.code-workspace` and the setup scripts. The code lives in five **independent Git repos** (not submodules; nothing pins their commits):
+This repo tracks only workspace files — this README, `CLAUDE.md`, `lyra.code-workspace` and the setup scripts. The code lives in six **independent Git repos** (not submodules; nothing pins their commits):
 
 | Directory | Language | Purpose |
 |---|---|---|
@@ -11,6 +11,7 @@ This repo tracks only workspace files — this README, `CLAUDE.md`, `lyra.code-w
 | [`lyra-vscode-ext/`](https://github.com/Lyra-Language/lyra-vscode-ext) | TypeScript | VS Code extension — launches the LSP server |
 | [`lyra-zed-ext/`](https://github.com/Lyra-Language/lyra-zed-ext) | Rust (wasm) | Zed extension — launches the LSP server |
 | [`lyra-website/`](https://github.com/Lyra-Language/lyra-website) | Astro | Public site — dev blog and docs/guides |
+| `vega/` | Lyra | Retro-console game studio (private repo; `setup.sh` reports it as failed without access) |
 
 ## Quick start
 
@@ -37,7 +38,7 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 .\setup.ps1
 ```
 
-Either way you end up with all five sub-projects side by side.
+Either way you end up with all six sub-projects side by side.
 
 ## Prerequisites
 

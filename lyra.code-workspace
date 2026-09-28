@@ -14,6 +14,9 @@
 		},
 		{
 			"path": "lyra-website"
+		},
+		{
+			"path": "vega"
 		}
 	],
 	"settings": {

@@ -1,6 +1,6 @@
 # Lyra — Project Context
 
-Lyra is a programming language under active development. This workspace holds five sub-projects: grammar, compiler, two editor extensions, and the public website.
+Lyra is a programming language under active development. This workspace holds six sub-projects: grammar, compiler, two editor extensions, the public website, and Vega (a retro-console game studio written in Lyra).
 
 ## Working Agreements
 
@@ -19,6 +19,7 @@ Lyra is a programming language under active development. This workspace holds fi
 | `lyra-vscode-ext/` | TypeScript | VS Code extension — launches the LSP server |
 | `lyra-zed-ext/` | Rust (wasm) | Zed extension — launches the LSP server; owns its tree-sitter queries |
 | `lyra-website/` | Astro | Public site — dev blog and docs (Starlight) |
+| `vega/` | Lyra | Retro-console game studio (SDL3 + Dear ImGui) — **private, proprietary** |
 
 The Go module (`github.com/Lyra-Language/lyra`) depends on the grammar via a `replace` directive to `../tree-sitter-lyra`. Each sub-project has its own `CLAUDE.md`.
 
