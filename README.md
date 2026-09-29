@@ -12,7 +12,7 @@ This repo tracks only workspace files — this README, `CLAUDE.md`, `lyra.code-w
 | [`lyra-zed-ext/`](https://github.com/Lyra-Language/lyra-zed-ext) | Rust (wasm) | Zed extension — launches the LSP server |
 | [`lyra-website/`](https://github.com/Lyra-Language/lyra-website) | Astro | Public site — dev blog and docs/guides |
 | `vega/` | Lyra | Retro-console game studio (private repo; `setup.sh` reports it as failed without access) |
-| `sheliak/` | Lyra | Console emulator for Vega (private repo) |
+| `sheliak/` | Lyra | Console emulator for Vega, MIT (private repo until published) |
 
 ## Quick start
 
