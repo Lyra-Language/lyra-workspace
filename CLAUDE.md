@@ -26,7 +26,7 @@ The Go module (`github.com/Lyra-Language/lyra`) depends on the grammar via a `re
 
 ## Bootstrapping the Workspace
 
-Each sub-project is an **independent Git repo** under `Lyra-Language` — **not submodules**. The workspace repo tracks only `CLAUDE.md`, `lyra.code-workspace` and the setup scripts (`.gitignore` ignores the rest). `README.md` covers per-OS prerequisites and the Windows execution-policy step.
+Each sub-project is an **independent Git repo** under `Lyra-Language` — **not submodules**. The workspace repo tracks only `CLAUDE.md`, `README.md`, `LINUX.md`, `lyra.code-workspace` and the setup scripts (`.gitignore` ignores the rest). `README.md` covers per-OS prerequisites and the Windows execution-policy step; `LINUX.md` is the tested Linux walkthrough, clone to Vega and Sheliak running — **keep it current when a build step, package or script changes**.
 
 ```bash
 ./setup.sh              # clone anything missing, fetch the rest   (setup.ps1 on Windows)

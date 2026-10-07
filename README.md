@@ -2,7 +2,7 @@
 
 Development workspace for [Lyra](https://github.com/Lyra-Language), a programming language under active development.
 
-This repo tracks only workspace files — this README, `CLAUDE.md`, `lyra.code-workspace` and the setup scripts. The code lives in seven **independent Git repos** (not submodules; nothing pins their commits):
+This repo tracks only workspace files — this README, `LINUX.md`, `CLAUDE.md`, `lyra.code-workspace` and the setup scripts. The code lives in seven **independent Git repos** (not submodules; nothing pins their commits):
 
 | Directory | Language | Purpose |
 |---|---|---|
@@ -39,7 +39,7 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 .\setup.ps1
 ```
 
-Either way you end up with all seven sub-projects side by side.
+Either way you end up with all seven sub-projects side by side. On Linux, [LINUX.md](LINUX.md) takes it from here to Vega and Sheliak running.
 
 ## Prerequisites
 
@@ -62,7 +62,7 @@ Then `lyra/examples/lyrafmt/libs.sh` builds the grammar archive.
 | A C compiler (clang/gcc) | the parser is CGO; the LLVM backend tests compile and run real binaries |
 | Node.js 22.12+ | `tree-sitter-lyra/` and `lyra-website/` (Astro 7 requires ≥ 22.12) |
 | `rustup` | `lyra-zed-ext/` — Zed builds it to wasm and adds `wasm32-wasip1` itself |
-| SDL3 | Vega, Sheliak and the ImGui binding — macOS: `brew install sdl3`; Ubuntu: see [Ubuntu, step by step](#ubuntu-step-by-step) |
+| SDL3 | Vega, Sheliak and the ImGui binding — macOS: `brew install sdl3`; Linux: see [LINUX.md](LINUX.md) |
 | cmake and ninja | `lyra/tools/llvm-m68k.sh`, the Genesis toolchain Vega builds ROMs with — macOS: `brew install cmake ninja` |
 
 Git LFS is **not** required; only checking out a historical commit of `tree-sitter-lyra` (from when `src/parser.c` lived in LFS) needs it.
@@ -92,72 +92,9 @@ go test ./...
 
 Then open `lyra.code-workspace` in VS Code. Its `lyra.languageServerPath` is `${workspaceFolder}/build/lyra-lsp` (what `lyra/build.sh` produces); remove it to use `lyra-lsp` from your `PATH`.
 
-## Ubuntu, step by step
+## Linux, step by step
 
-Done end to end on **Ubuntu 26.04 LTS** (arm64, in a VMware VM) on 10/06/26: everything builds, every
-test passes, Vega and Sheliak open their windows, and the ROMs come out byte-identical to the
-Mac's.
-
-**The machine.** 4 cores, 12 GB of RAM (16 to build the Genesis toolchain comfortably), and
-60 GB of free disk. A VM's default 2 cores and 20 GB disk is not enough. After growing a VM's
-disk, grow Ubuntu's partition into it too, e.g. `sudo growpart /dev/nvme0n1 2 && sudo resize2fs /dev/nvme0n1p2`
-(check the names with `lsblk`).
-
-**1. Packages** — on 26.04, all from Ubuntu's own repositories (Go 1.26, SDL3 3.4, tree-sitter
-0.25, clang 21, Node 22):
-
-```bash
-sudo apt install -y git build-essential clang lld llvm pkgconf zlib1g-dev golang-go nodejs npm \
-  libsdl3-dev libsdl3-image-dev libtree-sitter-dev cmake ninja-build curl mesa-vulkan-drivers
-```
-
-Vega draws through SDL's GPU API, which on Linux is Vulkan; `mesa-vulkan-drivers` includes a
-software Vulkan driver, so Vega runs in a VM with no GPU (slowly, but it runs). On **24.04 and
-older** three of these are missing or too old — SDL3 (build it from source), Go (install it
-from go.dev; the module needs 1.25.4+) and tree-sitter (from source, as above). That path is
-not yet tested end to end.
-
-**2. Clone** — `./setup.sh`, with a GitHub SSH key (or `--https`). `vega` and `sheliak` are
-private: ask for access to them first.
-
-**3. Lyra** — the compiler, the language server, `lyrafmt` and Vega's ImGui library:
-
-```bash
-cd lyra && go test ./... && ./build.sh
-```
-
-**4. The grammar:**
-
-```bash
-cd tree-sitter-lyra && npm install && npm run test
-```
-
-**5. The Genesis toolchain** — LLVM with its M68k target, patched and pinned, into
-`~/Dev/llvm-m68k` (about 40 minutes on 4 cores; a few GB):
-
-```bash
-lyra/tools/llvm-m68k.sh
-```
-
-**6. Sheliak and Vega:**
-
-```bash
-(cd sheliak && ./build.sh) && (cd vega && ./build.sh)
-```
-
-**7. The whole check** — Lyra's Genesis tests run their ROMs in Sheliak, and Vega's `--check`
-builds and plays the hero's game. Without the toolchain or Sheliak these skip, saying why;
-with both, nothing should skip:
-
-```bash
-cd lyra && SHELIAK=$PWD/../sheliak/build/sheliak go test ./cmd/lyrac/
-```
-
-```bash
-cd vega && SHELIAK=../sheliak/build/sheliak ./build/Vega --check
-```
-
-**8. Run it** — `./build/Vega examples/hero.vega` from `vega/`, then File > Run in Sheliak.
+**[LINUX.md](LINUX.md)** goes from a fresh machine — packages, GitHub access, cloning this repo — through building Lyra, the grammar and the Genesis toolchain to building and running Vega and Sheliak. For Ubuntu 26.04 on Intel/AMD or ARM, and other distributions through an Ubuntu container.
 
 ## Troubleshooting
 

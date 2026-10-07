@@ -5,6 +5,7 @@
 *
 !.gitignore
 !README.md
+!LINUX.md
 !CLAUDE.md
 !lyra.code-workspace
 !setup.sh
