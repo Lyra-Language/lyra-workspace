@@ -43,7 +43,7 @@ Either way you end up with all seven sub-projects side by side.
 
 ## Prerequisites
 
-**For the formatter probe** (`lyra/examples/lyrafmt/`): the tree-sitter runtime, **0.25 or newer** — the generated parser is ABI 15 (`LANGUAGE_VERSION` in `tree-sitter-lyra/src/parser.c`), and an older runtime is found by `pkg-config` and then refuses the grammar at run time. macOS: `brew install tree-sitter`. On Debian and Ubuntu the packaged `libtree-sitter-dev` is 0.20 (bookworm 0.20.7, 24.04 0.20.8) and **too old**, so build it from source, as CI does:
+**For the formatter probe** (`lyra/examples/lyrafmt/`): the tree-sitter runtime, **0.25 or newer** — the generated parser is ABI 15 (`LANGUAGE_VERSION` in `tree-sitter-lyra/src/parser.c`), and an older runtime is found by `pkg-config` and then refuses the grammar at run time. macOS: `brew install tree-sitter`. Ubuntu 26.04's `libtree-sitter-dev` (0.25.9) is new enough; on Debian 12 and Ubuntu 24.04 and older the packaged one is 0.20 (bookworm 0.20.7, 24.04 0.20.8) and **too old**, so build it from source, as CI does:
 
 ```bash
 curl -fsSL https://github.com/tree-sitter/tree-sitter/archive/refs/tags/v0.25.10.tar.gz | tar xz
@@ -62,6 +62,8 @@ Then `lyra/examples/lyrafmt/libs.sh` builds the grammar archive.
 | A C compiler (clang/gcc) | the parser is CGO; the LLVM backend tests compile and run real binaries |
 | Node.js 22.12+ | `tree-sitter-lyra/` and `lyra-website/` (Astro 7 requires ≥ 22.12) |
 | `rustup` | `lyra-zed-ext/` — Zed builds it to wasm and adds `wasm32-wasip1` itself |
+| SDL3 | Vega, Sheliak and the ImGui binding — macOS: `brew install sdl3`; Ubuntu: see [Ubuntu, step by step](#ubuntu-step-by-step) |
+| cmake and ninja | `lyra/tools/llvm-m68k.sh`, the Genesis toolchain Vega builds ROMs with — macOS: `brew install cmake ninja` |
 
 Git LFS is **not** required; only checking out a historical commit of `tree-sitter-lyra` (from when `src/parser.c` lived in LFS) needs it.
 
@@ -90,13 +92,80 @@ go test ./...
 
 Then open `lyra.code-workspace` in VS Code. Its `lyra.languageServerPath` is `${workspaceFolder}/build/lyra-lsp` (what `lyra/build.sh` produces); remove it to use `lyra-lsp` from your `PATH`.
 
+## Ubuntu, step by step
+
+Done end to end on **Ubuntu 26.04 LTS** (arm64, in a VMware VM) on 10/06/26: everything builds, every
+test passes, Vega and Sheliak open their windows, and the ROMs come out byte-identical to the
+Mac's.
+
+**The machine.** 4 cores, 12 GB of RAM (16 to build the Genesis toolchain comfortably), and
+60 GB of free disk. A VM's default 2 cores and 20 GB disk is not enough. After growing a VM's
+disk, grow Ubuntu's partition into it too, e.g. `sudo growpart /dev/nvme0n1 2 && sudo resize2fs /dev/nvme0n1p2`
+(check the names with `lsblk`).
+
+**1. Packages** — on 26.04, all from Ubuntu's own repositories (Go 1.26, SDL3 3.4, tree-sitter
+0.25, clang 21, Node 22):
+
+```bash
+sudo apt install -y git build-essential clang lld llvm pkgconf zlib1g-dev golang-go nodejs npm \
+  libsdl3-dev libsdl3-image-dev libtree-sitter-dev cmake ninja-build curl mesa-vulkan-drivers
+```
+
+Vega draws through SDL's GPU API, which on Linux is Vulkan; `mesa-vulkan-drivers` includes a
+software Vulkan driver, so Vega runs in a VM with no GPU (slowly, but it runs). On **24.04 and
+older** three of these are missing or too old — SDL3 (build it from source), Go (install it
+from go.dev; the module needs 1.25.4+) and tree-sitter (from source, as above). That path is
+not yet tested end to end.
+
+**2. Clone** — `./setup.sh`, with a GitHub SSH key (or `--https`). `vega` and `sheliak` are
+private: ask for access to them first.
+
+**3. Lyra** — the compiler, the language server, `lyrafmt` and Vega's ImGui library:
+
+```bash
+cd lyra && go test ./... && ./build.sh
+```
+
+**4. The grammar:**
+
+```bash
+cd tree-sitter-lyra && npm install && npm run test
+```
+
+**5. The Genesis toolchain** — LLVM with its M68k target, patched and pinned, into
+`~/Dev/llvm-m68k` (about 40 minutes on 4 cores; a few GB):
+
+```bash
+lyra/tools/llvm-m68k.sh
+```
+
+**6. Sheliak and Vega:**
+
+```bash
+(cd sheliak && ./build.sh) && (cd vega && ./build.sh)
+```
+
+**7. The whole check** — Lyra's Genesis tests run their ROMs in Sheliak, and Vega's `--check`
+builds and plays the hero's game. Without the toolchain or Sheliak these skip, saying why;
+with both, nothing should skip:
+
+```bash
+cd lyra && SHELIAK=$PWD/../sheliak/build/sheliak go test ./cmd/lyrac/
+```
+
+```bash
+cd vega && SHELIAK=../sheliak/build/sheliak ./build/Vega --check
+```
+
+**8. Run it** — `./build/Vega examples/hero.vega` from `vega/`, then File > Run in Sheliak.
+
 ## Troubleshooting
 
 - **Clone fails with a permission/authentication error** — the scripts default to SSH. Without a GitHub SSH key, use `./setup.sh --https`.
 - **`.\setup.ps1` is "not digitally signed"** — the execution policy; use `powershell -ExecutionPolicy Bypass -File .\setup.ps1`.
 - **"directory exists but is not a Git repo"** — something non-clone is at that path. Move it aside and re-run.
 - **A repo shows "ahead"/"behind" and won't update** — `--pull` protecting your work. Resolve it in that repo (commit, stash, push or merge), then re-run.
-- **`tree-sitter-lyra` `npm run test`/`build` can't find `aarch64-linux-gnu-gcc`** (ARM64 Linux only) — the prebuilt tree-sitter CLI thinks it is cross-compiling. Set `CC` explicitly (add `export CC=gcc` to your profile to persist):
+- **`tree-sitter-lyra` `npm run test`/`build` can't find `aarch64-linux-gnu-gcc`** (ARM64 Linux, with some tree-sitter CLI builds — seen on Fedora, not on Ubuntu 26.04) — the prebuilt tree-sitter CLI thinks it is cross-compiling. Set `CC` explicitly (add `export CC=gcc` to your profile to persist):
 
   ```bash
   CC=gcc npm run test
