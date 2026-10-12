@@ -64,6 +64,8 @@ Then `lyra/examples/lyrafmt/libs.sh` builds the grammar archive.
 | `rustup` | `lyra-zed-ext/` — Zed builds it to wasm and adds `wasm32-wasip1` itself |
 | SDL3 | Vega, Sheliak and the ImGui binding — macOS: `brew install sdl3`; Linux: see [LINUX.md](LINUX.md) |
 | cmake and ninja | `lyra/tools/llvm-m68k.sh`, the Genesis toolchain Vega builds ROMs with — macOS: `brew install cmake ninja` |
+| Xcode (optional) | `lyrac --target ios`/`ios-simulator` — builds for iOS, and runs in the Simulator |
+| zig and Docker (optional) | `lyrac --target linux-arm64`/`linux-x86_64` from a Mac — zig links (`brew install zig`), Docker runs |
 
 Git LFS is **not** required; only checking out a historical commit of `tree-sitter-lyra` (from when `src/parser.c` lived in LFS) needs it.
 
