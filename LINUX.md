@@ -55,8 +55,8 @@ Go must be 1.25.4 or newer, SDL3 3.4 or newer, tree-sitter 0.25 or newer.
 
 ## 2. GitHub access
 
-The scripts clone over SSH. `vega` and `sheliak` are **private**: ask for access to both
-first, or `setup.sh` reports them as failed and steps 6–9 have nothing to build.
+The scripts clone over SSH. `vega`, `sheliak` and `sulafat` are **private**: ask for access to
+them first, or `setup.sh` reports them as failed and steps 6–9 have nothing to build.
 
 If the machine has no SSH key on GitHub yet:
 
@@ -94,9 +94,9 @@ git clone git@github.com:Lyra-Language/lyra-workspace.git
 cd lyra-workspace && ./setup.sh
 ```
 
-`setup.sh` clones the seven sub-projects beside each other — `tree-sitter-lyra`, `lyra`,
-`lyra-vscode-ext`, `lyra-zed-ext`, `lyra-website`, `vega` and `sheliak` — and ends with a
-status line for each. All seven should be ✓. It is safe to re-run; see
+`setup.sh` clones the eight sub-projects beside each other — `tree-sitter-lyra`, `lyra`,
+`lyra-vscode-ext`, `lyra-zed-ext`, `lyra-website`, `vega`, `sheliak` and `sulafat` — and
+ends with a status line for each. All eight should be ✓. It is safe to re-run; see
 [Running setup](README.md#running-setup) for its flags.
 
 ## 4. Build Lyra
@@ -299,7 +299,7 @@ old.
 - **`GLIBC_2.43 not found`** — a program built inside a newer Ubuntu container was
   started outside it; see [Run what you built inside the container](#other-distributions-an-ubuntu-container).
 - **`setup.sh` fails to clone with a permission error** — no SSH key on GitHub (step 2), or
-  for `vega`/`sheliak`, no access to them yet.
+  for `vega`/`sheliak`/`sulafat`, no access to them yet.
 - **The parser compile is killed partway** — `src/parser.c` is ~15 MB and `cc1` needs real
   memory; on a machine short of RAM that is an out-of-memory kill. Add RAM or swap. The LLVM build in
   step 6 is the other place this happens; `ninja -C ~/Dev/llvm-m68k/build -j2 …` (the

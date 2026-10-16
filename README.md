@@ -2,7 +2,7 @@
 
 Development workspace for [Lyra](https://github.com/Lyra-Language), a programming language under active development.
 
-This repo tracks only workspace files — this README, `LINUX.md`, `CLAUDE.md`, `lyra.code-workspace` and the setup scripts. The code lives in seven **independent Git repos** (not submodules; nothing pins their commits):
+This repo tracks only workspace files — this README, `LINUX.md`, `CLAUDE.md`, `lyra.code-workspace` and the setup scripts. The code lives in eight **independent Git repos** (not submodules; nothing pins their commits):
 
 | Directory | Language | Purpose |
 |---|---|---|
@@ -13,6 +13,7 @@ This repo tracks only workspace files — this README, `LINUX.md`, `CLAUDE.md`, 
 | [`lyra-website/`](https://github.com/Lyra-Language/lyra-website) | Astro | Public site — dev blog and docs/guides |
 | `vega/` | Lyra | Game studio, retro consoles first (private repo; `setup.sh` reports it as failed without access) |
 | `sheliak/` | Lyra | Console emulator for Vega, MIT (private repo until published) |
+| `sulafat/` | Lyra | Terminal emulator after Warp, MIT (private repo until published) |
 
 ## Quick start
 
@@ -39,7 +40,7 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 .\setup.ps1
 ```
 
-Either way you end up with all seven sub-projects side by side. On Linux, [LINUX.md](LINUX.md) takes it from here to Vega and Sheliak running.
+Either way you end up with all eight sub-projects side by side. On Linux, [LINUX.md](LINUX.md) takes it from here to Vega and Sheliak running.
 
 ## Prerequisites
 
