@@ -1,6 +1,6 @@
 # Lyra — Project Context
 
-Lyra is a programming language under active development. This workspace holds eight sub-projects: grammar, compiler, two editor extensions, the public website, Vega (a game studio written in Lyra, retro consoles first), Sheliak (its console emulator), and Sulafat (a Warp-style terminal).
+Lyra is a programming language under active development. This workspace holds eight sub-projects: grammar, compiler, two editor extensions, the public website, Vega (a game studio written in Lyra, retro consoles first), Sheliak (its console emulator), and Termina (a Warp-style terminal).
 
 ## Working Agreements
 
@@ -21,7 +21,7 @@ Lyra is a programming language under active development. This workspace holds ei
 | `lyra-website/` | Astro | Public site — dev blog and docs (Starlight) |
 | `vega/` | Lyra | Game studio: retro consoles, and modern platforms through `std.game` (SDL3 + Dear ImGui) — **private, proprietary** |
 | `sheliak/` | Lyra | Genesis emulator for Vega — MIT; its repo is private until published |
-| `sulafat/` | Lyra | Terminal emulator after Warp (blocks, an editor for the command line) — MIT; its repo is private until published |
+| `termina/` | Lyra | Terminal emulator after Warp (blocks, an editor for the command line) — MIT; its repo is private until published |
 
 The Go module (`github.com/Lyra-Language/lyra`) depends on the grammar via a `replace` directive to `../tree-sitter-lyra`. Each sub-project has its own `CLAUDE.md`.
 

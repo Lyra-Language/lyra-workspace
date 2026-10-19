@@ -13,7 +13,7 @@ This repo tracks only workspace files — this README, `LINUX.md`, `CLAUDE.md`, 
 | [`lyra-website/`](https://github.com/Lyra-Language/lyra-website) | Astro | Public site — dev blog and docs/guides |
 | `vega/` | Lyra | Game studio, retro consoles first (private repo; `setup.sh` reports it as failed without access) |
 | `sheliak/` | Lyra | Console emulator for Vega, MIT (private repo until published) |
-| `sulafat/` | Lyra | Terminal emulator after Warp, MIT (private repo until published) |
+| `termina/` | Lyra | Terminal emulator after Warp, MIT (private repo until published) |
 
 ## Quick start
 

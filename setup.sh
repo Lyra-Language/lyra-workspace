@@ -19,7 +19,7 @@ ORG_HTTPS="https://github.com/Lyra-Language"
 
 # Sub-projects, in dependency order (grammar first — the Go module replaces
 # into ../tree-sitter-lyra).
-REPOS="tree-sitter-lyra lyra lyra-vscode-ext lyra-zed-ext lyra-website vega sheliak sulafat"
+REPOS="tree-sitter-lyra lyra lyra-vscode-ext lyra-zed-ext lyra-website vega sheliak termina"
 
 USE_HTTPS=0
 DO_PULL=0

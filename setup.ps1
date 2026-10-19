@@ -38,7 +38,7 @@ $OrgHttps = 'https://github.com/Lyra-Language'
 
 # Sub-projects, in dependency order (grammar first - the Go module replaces
 # into ../tree-sitter-lyra).
-$Repos = @('tree-sitter-lyra', 'lyra', 'lyra-vscode-ext', 'lyra-zed-ext', 'lyra-website', 'vega', 'sheliak', 'sulafat')
+$Repos = @('tree-sitter-lyra', 'lyra', 'lyra-vscode-ext', 'lyra-zed-ext', 'lyra-website', 'vega', 'sheliak', 'termina')
 
 # --- output helpers -------------------------------------------------------
 

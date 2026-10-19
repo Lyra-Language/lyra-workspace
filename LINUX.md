@@ -45,8 +45,8 @@ sudo apt install -y git build-essential clang lld llvm pkgconf zlib1g-dev golang
 | `libtree-sitter-dev`, `pkgconf` | `lyrafmt`, which the language server formats with (needs 0.25+) |
 | `cmake`, `ninja-build`, `curl`, `zlib1g-dev` | the Genesis toolchain, and the ImGui download |
 | `mesa-vulkan-drivers` | Vulkan for Intel and AMD graphics, which Vega draws with |
-| `zsh` | optional: Sulafat's editor and completion work with bash too (completion through `bash-completion`, Ubuntu's default); zsh adds completion descriptions. Its zsh tests skip without it |
-| `fonts-noto-cjk` | Sulafat's fallback for Chinese, Japanese and Korean, which DejaVu Sans Mono lacks |
+| `zsh` | optional: Termina's editor and completion work with bash too (completion through `bash-completion`, Ubuntu's default); zsh adds completion descriptions. Its zsh tests skip without it |
+| `fonts-noto-cjk` | Termina's fallback for Chinese, Japanese and Korean, which DejaVu Sans Mono lacks |
 
 Check the versions that matter:
 
@@ -58,7 +58,7 @@ Go must be 1.25.4 or newer, SDL3 3.4 or newer, tree-sitter 0.25 or newer.
 
 ## 2. GitHub access
 
-The scripts clone over SSH. `vega`, `sheliak` and `sulafat` are **private**: ask for access to
+The scripts clone over SSH. `vega`, `sheliak` and `termina` are **private**: ask for access to
 them first, or `setup.sh` reports them as failed and steps 6–9 have nothing to build.
 
 If the machine has no SSH key on GitHub yet:
@@ -98,7 +98,7 @@ cd lyra-workspace && ./setup.sh
 ```
 
 `setup.sh` clones the eight sub-projects beside each other — `tree-sitter-lyra`, `lyra`,
-`lyra-vscode-ext`, `lyra-zed-ext`, `lyra-website`, `vega`, `sheliak` and `sulafat` — and
+`lyra-vscode-ext`, `lyra-zed-ext`, `lyra-website`, `vega`, `sheliak` and `termina` — and
 ends with a status line for each. All eight should be ✓. It is safe to re-run; see
 [Running setup](README.md#running-setup) for its flags.
 
@@ -149,7 +149,7 @@ It ends with `built: …/llvm-m68k/build/bin/llc`. To put it elsewhere, set `LYR
 You can skip this step to begin with: Vega and Sheliak build and run without it, but Vega
 cannot build a ROM and its checks skip what needs one.
 
-## 7. Build Sheliak, Vega and Sulafat
+## 7. Build Sheliak, Vega and Termina
 
 All three use the compiler from step 4 (`../lyra/build/lyrac`; `$LYRAC` overrides it):
 
@@ -162,14 +162,14 @@ All three use the compiler from step 4 (`../lyra/build/lyrac`; `$LYRAC` override
 ```
 
 ```bash
-(cd sulafat && ./build.sh)
+(cd termina && ./build.sh)
 ```
 
 That gives `sheliak/build/sheliak` (and Sheliak's test tools beside it), `vega/build/Vega`,
-and `sulafat/build/sulafat` with its tests. They run headless:
+and `termina/build/termina` with its tests. They run headless:
 
 ```bash
-(cd sulafat && build/vttest && SDL_VIDEODRIVER=dummy build/uitest)
+(cd termina && build/vttest && SDL_VIDEODRIVER=dummy build/uitest)
 ```
 
 Each ends with "all passed"; vttest says which checks it skipped for a program not
@@ -193,7 +193,7 @@ then builds the hero's game and plays it in Sheliak:
 
 It ends with "all passed"; a line beginning `skipped:` names what was missing.
 
-## 9. Run Vega, Sheliak and Sulafat
+## 9. Run Vega, Sheliak and Termina
 
 **Run Vega from its own directory.** It finds the compiler at `../lyra/build/lyrac` and
 Sheliak at `../sheliak/build/sheliak`, relative to where it is started (`$LYRAC` and
@@ -224,15 +224,15 @@ Start; Q for Mode; F for full screen and Escape to leave it. Gamepads are pads 1
 Close the window to quit. Its menu bar — open, save states, settings — is macOS-only for
 now, so on Linux those are not there yet.
 
-**Sulafat** runs your login shell (`$SHELL`) in tabs:
+**Termina** runs your login shell (`$SHELL`) in tabs:
 
 ```bash
-sulafat/build/sulafat
+termina/build/termina
 ```
 
-With bash (Ubuntu's) or zsh as the shell, the command line is Sulafat's editor, and Tab
-completes as the shell does; `SHELL=/bin/zsh sulafat/build/sulafat` tries zsh for one run. Its menus
-are a bar inside the window (Sulafat, Shell, Edit, Window). Its shortcuts are Ctrl+Shift —
+With bash (Ubuntu's) or zsh as the shell, the command line is Termina's editor, and Tab
+completes as the shell does; `SHELL=/bin/zsh termina/build/termina` tries zsh for one run. Its menus
+are a bar inside the window (Termina, Shell, Edit, View, Window). Its shortcuts are Ctrl+Shift —
 Ctrl+Shift+T and W for tabs, Ctrl+Shift+C and V for the clipboard — since Ctrl alone is the
 shell's.
 
@@ -325,7 +325,7 @@ old.
 - **`GLIBC_2.43 not found`** — a program built inside a newer Ubuntu container was
   started outside it; see [Run what you built inside the container](#other-distributions-an-ubuntu-container).
 - **`setup.sh` fails to clone with a permission error** — no SSH key on GitHub (step 2), or
-  for `vega`/`sheliak`/`sulafat`, no access to them yet.
+  for `vega`/`sheliak`/`termina`, no access to them yet.
 - **The parser compile is killed partway** — `src/parser.c` is ~15 MB and `cc1` needs real
   memory; on a machine short of RAM that is an out-of-memory kill. Add RAM or swap. The LLVM build in
   step 6 is the other place this happens; `ninja -C ~/Dev/llvm-m68k/build -j2 …` (the
