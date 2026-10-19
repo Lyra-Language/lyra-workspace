@@ -45,7 +45,7 @@ sudo apt install -y git build-essential clang lld llvm pkgconf zlib1g-dev golang
 | `libtree-sitter-dev`, `pkgconf` | `lyrafmt`, which the language server formats with (needs 0.25+) |
 | `cmake`, `ninja-build`, `curl`, `zlib1g-dev` | the Genesis toolchain, and the ImGui download |
 | `mesa-vulkan-drivers` | Vulkan for Intel and AMD graphics, which Vega draws with |
-| `zsh` | Sulafat's command-line editor, which works through zsh's integration (bash gets a classic terminal); its tests skip without it |
+| `zsh` | Sulafat's Tab completion, which is zsh's own (with bash the command-line editor works, without completion yet); its zsh tests skip without it |
 | `fonts-noto-cjk` | Sulafat's fallback for Chinese, Japanese and Korean, which DejaVu Sans Mono lacks |
 
 Check the versions that matter:
@@ -230,8 +230,9 @@ now, so on Linux those are not there yet.
 sulafat/build/sulafat
 ```
 
-With zsh as the shell, the command line is Sulafat's editor; `chsh -s /bin/zsh` makes it
-the login shell, or `SHELL=/bin/zsh sulafat/build/sulafat` tries it for one run. Its menus
+With bash (Ubuntu's) or zsh as the shell, the command line is Sulafat's editor; Tab
+completion is zsh's only for now — `chsh -s /bin/zsh` makes zsh the login shell, or
+`SHELL=/bin/zsh sulafat/build/sulafat` tries it for one run. Its menus
 are a bar inside the window (Sulafat, Shell, Edit, Window). Its shortcuts are Ctrl+Shift —
 Ctrl+Shift+T and W for tabs, Ctrl+Shift+C and V for the clipboard — since Ctrl alone is the
 shell's.
