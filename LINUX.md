@@ -31,7 +31,8 @@ sudo apt update
 
 ```bash
 sudo apt install -y git build-essential clang lld llvm pkgconf zlib1g-dev golang-go nodejs npm \
-  libsdl3-dev libsdl3-image-dev libtree-sitter-dev cmake ninja-build curl mesa-vulkan-drivers
+  libsdl3-dev libsdl3-image-dev libtree-sitter-dev cmake ninja-build curl mesa-vulkan-drivers \
+  zsh fonts-noto-cjk
 ```
 
 | Package | For |
@@ -44,6 +45,8 @@ sudo apt install -y git build-essential clang lld llvm pkgconf zlib1g-dev golang
 | `libtree-sitter-dev`, `pkgconf` | `lyrafmt`, which the language server formats with (needs 0.25+) |
 | `cmake`, `ninja-build`, `curl`, `zlib1g-dev` | the Genesis toolchain, and the ImGui download |
 | `mesa-vulkan-drivers` | Vulkan for Intel and AMD graphics, which Vega draws with |
+| `zsh` | Sulafat's command-line editor, which works through zsh's integration (bash gets a classic terminal); its tests skip without it |
+| `fonts-noto-cjk` | Sulafat's fallback for Chinese, Japanese and Korean, which DejaVu Sans Mono lacks |
 
 Check the versions that matter:
 
@@ -146,9 +149,9 @@ It ends with `built: …/llvm-m68k/build/bin/llc`. To put it elsewhere, set `LYR
 You can skip this step to begin with: Vega and Sheliak build and run without it, but Vega
 cannot build a ROM and its checks skip what needs one.
 
-## 7. Build Sheliak and Vega
+## 7. Build Sheliak, Vega and Sulafat
 
-Both use the compiler from step 4 (`../lyra/build/lyrac`; `$LYRAC` overrides it):
+All three use the compiler from step 4 (`../lyra/build/lyrac`; `$LYRAC` overrides it):
 
 ```bash
 (cd sheliak && ./build.sh)
@@ -158,8 +161,19 @@ Both use the compiler from step 4 (`../lyra/build/lyrac`; `$LYRAC` overrides it)
 (cd vega && ./build.sh)
 ```
 
-That gives `sheliak/build/sheliak` (and Sheliak's test tools beside it) and
-`vega/build/Vega`.
+```bash
+(cd sulafat && ./build.sh)
+```
+
+That gives `sheliak/build/sheliak` (and Sheliak's test tools beside it), `vega/build/Vega`,
+and `sulafat/build/sulafat` with its tests. They run headless:
+
+```bash
+(cd sulafat && build/vttest && SDL_VIDEODRIVER=dummy build/uitest)
+```
+
+Each ends with "all passed"; vttest says which checks it skipped for a program not
+installed (zsh, vim). `build/menutest` is the Mac's menu bar, and answers "no menu bar here".
 
 ## 8. Run the whole check
 
@@ -179,7 +193,7 @@ then builds the hero's game and plays it in Sheliak:
 
 It ends with "all passed"; a line beginning `skipped:` names what was missing.
 
-## 9. Run Vega and Sheliak
+## 9. Run Vega, Sheliak and Sulafat
 
 **Run Vega from its own directory.** It finds the compiler at `../lyra/build/lyrac` and
 Sheliak at `../sheliak/build/sheliak`, relative to where it is started (`$LYRAC` and
@@ -209,6 +223,18 @@ Sheliak's keys (pad 1): arrows; Z, X, C for A, B, C and A, S, D for X, Y, Z; Ret
 Start; Q for Mode; F for full screen and Escape to leave it. Gamepads are pads 1 and 2.
 Close the window to quit. Its menu bar — open, save states, settings — is macOS-only for
 now, so on Linux those are not there yet.
+
+**Sulafat** runs your login shell (`$SHELL`) in tabs:
+
+```bash
+sulafat/build/sulafat
+```
+
+With zsh as the shell, the command line is Sulafat's editor; `chsh -s /bin/zsh` makes it
+the login shell, or `SHELL=/bin/zsh sulafat/build/sulafat` tries it for one run. Its menus
+are a bar inside the window (Sulafat, Shell, Edit, Window). Its shortcuts are Ctrl+Shift —
+Ctrl+Shift+T and W for tabs, Ctrl+Shift+C and V for the clipboard — since Ctrl alone is the
+shell's.
 
 ## Keeping it up to date
 
