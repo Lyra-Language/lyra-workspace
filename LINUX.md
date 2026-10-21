@@ -123,7 +123,9 @@ from the steps below.
 `./build.sh` ends with one line saying what it built. It should name **`lyrafmt`** and
 **`lib/liblyra-imgui.a`**; if either says *skipped* or *failed*, the reason is in that line
 (usually SDL3 or tree-sitter not found by `pkg-config`, or no network for the ImGui
-download). Vega cannot link without `liblyra-imgui.a`.
+download). Vega cannot link without `liblyra-imgui.a`. It also names
+**`lib/liblyra-accesskit.a`**, which on Linux is always *a stub* (AccessKit's bridge is macOS's
+for now): the `ui` framework links it, and nothing hears the window.
 
 ## 5. Build and test the grammar
 
