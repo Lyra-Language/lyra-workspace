@@ -32,7 +32,7 @@ sudo apt update
 ```bash
 sudo apt install -y git build-essential clang lld llvm pkgconf zlib1g-dev golang-go nodejs npm \
   libsdl3-dev libsdl3-image-dev libtree-sitter-dev cmake ninja-build curl mesa-vulkan-drivers \
-  zsh fonts-noto-cjk
+  libharfbuzz-dev libfreetype-dev fonts-dejavu-core zsh fonts-noto-cjk
 ```
 
 | Package | For |
@@ -42,6 +42,7 @@ sudo apt install -y git build-essential clang lld llvm pkgconf zlib1g-dev golang
 | `golang-go` | the compiler and language server (the module needs Go 1.25.4+) |
 | `nodejs`, `npm` | the grammar (and the website, which needs Node 22.12+) |
 | `libsdl3-dev`, `libsdl3-image-dev` | Vega's and Sheliak's windows, sound and input; the SDL3 bindings' tests |
+| `libharfbuzz-dev`, `libfreetype-dev`, `fonts-dejavu-core` | `ui/`'s text: shaping, the glyph atlas, and the font `ui.text` finds first on Linux (DejaVu Sans); its tests skip without them |
 | `libtree-sitter-dev`, `pkgconf` | `lyrafmt`, which the language server formats with (needs 0.25+) |
 | `cmake`, `ninja-build`, `curl`, `zlib1g-dev` | the Genesis toolchain, and the ImGui download |
 | `mesa-vulkan-drivers` | Vulkan for Intel and AMD graphics, which Vega draws with |
