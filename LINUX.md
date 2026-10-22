@@ -125,7 +125,9 @@ from the steps below.
 (usually SDL3 or tree-sitter not found by `pkg-config`, or no network for the ImGui
 download). Vega cannot link without `liblyra-imgui.a`. It also names
 **`lib/liblyra-accesskit.a`**, which on Linux is always *a stub* (AccessKit's bridge is macOS's
-for now): the `ui` framework links it, and nothing hears the window.
+for now): the `ui` framework links it, and nothing hears the window. So does
+**`lib/liblyra-gpu.a`** (`ui.gpu`'s renderer, Metal's so far): on Linux a stub, and a `ui` program
+draws with SDL's 2D renderer.
 
 ## 5. Build and test the grammar
 
