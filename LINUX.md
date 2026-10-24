@@ -174,11 +174,12 @@ That gives `sheliak/build/sheliak` (and Sheliak's test tools beside it), `vega/b
 and `termina/build/termina` with its tests. They run headless:
 
 ```bash
-(cd termina && build/vttest && SDL_VIDEODRIVER=dummy build/uitest)
+(cd termina && build/vttest && tools/check.sh)
 ```
 
-Each ends with "all passed"; vttest says which checks it skipped for a program not
-installed (zsh, vim). `build/menutest` is the Mac's menu bar, and answers "no menu bar here".
+vttest ends with "all passed", saying which checks it skipped for a program not installed
+(zsh, vim); `tools/check.sh` plays the window under SDL's dummy driver and prints `ok` for
+each of its checks, the command line's skipped without zsh.
 
 ## 8. Run the whole check
 
@@ -236,8 +237,9 @@ termina/build/termina
 ```
 
 With bash (Ubuntu's) or zsh as the shell, the command line is Termina's editor, and Tab
-completes as the shell does; `SHELL=/bin/zsh termina/build/termina` tries zsh for one run. Its menus
-are a bar inside the window (Termina, Shell, Edit, View, Window). Its shortcuts are Ctrl+Shift —
+completes as the shell does; `SHELL=/bin/zsh termina/build/termina` tries zsh for one run. It
+draws its own title bar, as GNOME's apps do: `+` for a new tab, ☰ holding its menus, and the
+window's buttons. Its shortcuts are Ctrl+Shift —
 Ctrl+Shift+T and W for tabs, Ctrl+Shift+C and V for the clipboard — since Ctrl alone is the
 shell's.
 
