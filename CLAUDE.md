@@ -70,44 +70,11 @@ After changing `tree-sitter-lyra/grammar.js`:
 
 **Zed** (`lyra-zed-ext/extension.toml`) pins `tree-sitter-lyra` **by commit** and compiles `parser.c` itself. A grammar change reaches Zed only once pushed *and* the pin is bumped; a pin to an unpushed commit fails the build. Queries live in `lyra-zed-ext/languages/lyra/`; a query naming a node that no longer exists makes Zed drop the file and **all Lyra highlighting disappears**. See `lyra-zed-ext/CLAUDE.md`.
 
-## Data Flow
-
-```
-source text
-  → pkg/parser                 (tree-sitter CST via CGO)
-  → pkg/analyzer/collector     (CST → AST + SymbolTable)
-  → pkg/analyzer/typechecker   (AST → TypeTable)
-```
-
 ## Where to Look
 
 - **Language semantics:** `lyra/LANGUAGE.md` — not auto-loaded; read the relevant section before changing or relying on language behaviour.
 - **Compiler map** (packages, cross-package rules, per-package READMEs): `lyra/CLAUDE.md`.
 
-## Editor Extensions
-
-- **Formatting belongs to neither extension**: `lyra-lsp` implements `textDocument/formatting` by running `lyrafmt` (the formatter written in Lyra, `lyra/examples/lyrafmt/`), which `./build.sh` puts beside it. Both editors get `Format Document` with no client code, and a machine without `lyrafmt` simply has none.
-- **VS Code** (`lyra-vscode-ext/`): `src/extension.ts` starts an LSP client spawning `lyra-lsp` over stdio; path overridable via `lyra.languageServerPath`. Highlighting is a hand-written TextMate grammar.
-- **`.lui` markup** (`lyra/tools/lui`) is highlighted by both: VS Code by its own TextMate grammar, Zed from `tree-sitter-lyra/lui/` (a second grammar in that repo, pinned with `path = "lui"`). Both send it to `lyra-lsp`, which shows its errors at the markup's lines by running `lui` beside itself.
-- **Zed** (`lyra-zed-ext/`): Rust cdylib for `wasm32-wasip1`. `src/lyra.rs` resolves the server: `lsp.lyra-lsp.binary.path` → `lyra-lsp` on `$PATH` → `build/lyra-lsp` in the worktree. Highlights from tree-sitter via its own `languages/lyra/{highlights,brackets,indents,outline,injections}.scm` — a deliberate sibling of `tree-sitter-lyra/queries/highlights.scm` (different capture names), so **both need updating when the grammar gains a node**. Install via **Install Dev Extension** in Zed; not in the registry.
-
 ## Current Development Focus
 
 `lyrafmt`, the formatter written in Lyra, as the self-hosting probe — it keeps finding compiler bugs rather than formatter ones. Beside it, `lyra/examples/SDL3/` grows the SDL3 bindings example by example towards an NES-style game, and `lyra/ui/` is a GUI framework written in Lyra (a display list drawn through SDL3 behind swappable `Platform`/`Renderer` traits; `lyra/ui/README.md`). The typechecker is maintenance: exhaustiveness and the purity work are built, and what turns up is a position that accepts a value it should refuse. Detail in `lyra/CLAUDE.md`; open work in `lyra/todo.md`; finished work and reasoning in `lyra/COMPLETED.md`.
-
-## Testing
-
-```bash
-# From lyra/
-go test ./...                                              # all tests
-go test ./pkg/analyzer/collector/tests/...                 # collector golden tests
-UPDATE_GOLDEN=1 go test ./pkg/analyzer/collector/tests/... # regenerate golden files
-go test -run TestFunctionName ./pkg/...                    # single test
-
-# From tree-sitter-lyra/
-npx tree-sitter generate && npx tree-sitter test           # grammar corpus tests
-npx tree-sitter test --include "Test Name"                 # single corpus test
-```
-
-- Golden files: `lyra/pkg/analyzer/collector/tests/testdata/*.golden`; the printer omits zero/nil/empty fields.
-- `lyra/pkg/backend/llvm` behavioural tests (clang compile-and-run) are fully parallel and cache binaries in `~/Library/Caches/lyra-llvm-tests`, keyed on emitted IR; a warm run is ~2s (details in `lyra/CLAUDE.md`).
