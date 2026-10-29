@@ -64,9 +64,9 @@ After changing `tree-sitter-lyra/grammar.js`:
 2. `go clean -cache` — **required**: otherwise tests silently run against the old grammar
 3. `go test ./...`
 
-**CI for `lyra`** (`.github/workflows/ci.yml`) checks out the **`tree-sitter-lyra` remote** and regenerates from its `grammar.js` — not your local sibling. Two things must both hold:
-1. **Push ordering:** push the grammar change to `tree-sitter-lyra` **before (or with)** the dependent `lyra` code, or CI fails every test using the new grammar. Commit the regenerated `parser.c` with the grammar.
-2. **Cache staleness:** the CGO binding does `#include "../../src/parser.c"`, which Go's cache doesn't hash, so a restored `setup-go` cache keeps the old parser. **Keep the `go clean -cache` step** after regeneration in CI.
+**CI for `lyra`** (`.github/workflows/ci.yml`) checks out the **`tree-sitter-lyra` remote** and builds its **committed `src/parser.c`** — not your local sibling, and not regenerated (nothing in CI checks `parser.c` against `grammar.js`). Two things must both hold:
+1. **Push ordering:** push the grammar change to `tree-sitter-lyra` **before (or with)** the dependent `lyra` code, or CI fails every test using the new grammar. **Commit the regenerated `parser.c` with the grammar** — CI tests that file, so a `grammar.js` pushed alone changes nothing CI sees.
+2. **Cache staleness:** the CGO binding does `#include "../../src/parser.c"`, which Go's cache doesn't hash, so a restored `setup-go` cache keeps the old parser. **Keep the `go clean -cache` step** in CI.
 
 **Zed** (`lyra-zed-ext/extension.toml`) pins `tree-sitter-lyra` **by commit** and compiles `parser.c` itself. A grammar change reaches Zed only once pushed *and* the pin is bumped; a pin to an unpushed commit fails the build. Queries live in `lyra-zed-ext/languages/lyra/`; a query naming a node that no longer exists makes Zed drop the file and **all Lyra highlighting disappears**. See `lyra-zed-ext/CLAUDE.md`.
 

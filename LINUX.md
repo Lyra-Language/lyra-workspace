@@ -38,7 +38,7 @@ sudo apt install -y git build-essential clang lld llvm pkgconf zlib1g-dev golang
 | Package | For |
 |---|---|
 | `git` | cloning |
-| `build-essential`, `clang`, `lld`, `llvm` | `lyrac` assembles and links with `clang` (`$LYRA_CC` overrides it); the parser is CGO; Dear ImGui is C++ |
+| `build-essential`, `clang`, `lld`, `llvm` | `lyrac` assembles and links with `clang` (`$LYRA_CC` overrides it), and links an optimized build's cached parts with `lld` (ThinLTO; without it the build is made whole); the parser is CGO; Dear ImGui is C++ |
 | `golang-go` | the compiler and language server (the module needs Go 1.25.4+) |
 | `nodejs`, `npm` | the grammar (and the website, which needs Node 22.12+) |
 | `libsdl3-dev`, `libsdl3-image-dev` | Vega's and Sheliak's windows, sound and input; Termina's background images; the SDL3 bindings' tests |
