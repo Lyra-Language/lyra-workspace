@@ -105,8 +105,8 @@ ends with a status line for each. All eight should be ✓. It is safe to re-run;
 
 ## 4. Build Lyra
 
-The compiler (`lyrac`), the language server (`lyra-lsp`), the formatter (`lyrafmt`) and the
-C half of the ImGui binding Vega uses:
+The compiler (`lyrac`), the language server (`lyra-lsp`), the formatter (`lyrafmt`), and the
+C halves of the `ui` framework and the bindings Vega and Termina use:
 
 ```bash
 (cd lyra && go test ./... && ./build.sh)
@@ -120,10 +120,11 @@ and fail. One after the other avoids it, or add `-timeout 30m`.
 Lyra's Genesis tests skip at this point, saying why — they need the toolchain and Sheliak
 from the steps below.
 
-`./build.sh` ends with one line saying what it built. It should name **`lyrafmt`** and
-**`lib/liblyra-imgui.a`**; if either says *skipped* or *failed*, the reason is in that line
-(usually SDL3 or tree-sitter not found by `pkg-config`, or no network for the ImGui
-download). Vega cannot link without `liblyra-imgui.a`. It also names
+`./build.sh` ends with one line saying what it built. It should name **`lyrafmt`**; if it
+says *skipped* or *failed*, the reason is in that line (usually tree-sitter not found by
+`pkg-config`). It names **`lib/liblyra-imgui.a`** too, which only lyra's ImGui examples use
+(Vega no longer does): skipped without SDL3 or the network for its download, harmlessly. It
+also names
 **`lib/liblyra-accesskit.a`**, which on Linux is always *a stub* (AccessKit's bridge is macOS's
 for now): the `ui` framework links it, and nothing hears the window. So does
 **`lib/liblyra-gpu.a`** (`ui.gpu`'s renderer, Metal's so far): on Linux a stub, and a `ui` program
@@ -345,8 +346,6 @@ old.
   (cd tree-sitter-lyra && CC=gcc npm run test)
   ```
 
-- **`build.sh` says no `liblyra-imgui.a`** — the reason follows it: SDL3 not found by
-  `pkg-config`, no network for the pinned ImGui download, or no C++-capable `clang`.
 - **Vega or Sheliak can't open a window** — check there is a Vulkan driver
   (`mesa-vulkan-drivers`); over SSH, there is no display to open one on.
 - **Vega says it could not start `lyrac` or Sheliak** — it was started from somewhere other

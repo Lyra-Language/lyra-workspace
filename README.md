@@ -63,7 +63,7 @@ Then `lyra/examples/lyrafmt/libs.sh` builds the grammar archive.
 | A C compiler (clang/gcc) | the parser is CGO; the LLVM backend tests compile and run real binaries |
 | Node.js 22.12+ | `tree-sitter-lyra/` and `lyra-website/` (Astro 7 requires ≥ 22.12) |
 | `rustup` | `lyra-zed-ext/` — Zed builds it to wasm and adds `wasm32-wasip1` itself |
-| SDL3 | Vega, Sheliak and the ImGui binding — macOS: `brew install sdl3`; Linux: see [LINUX.md](LINUX.md) |
+| SDL3 | Vega, Sheliak, Termina and lyra's `ui` — macOS: `brew install sdl3`; Linux: see [LINUX.md](LINUX.md) |
 | cmake and ninja | `lyra/tools/llvm-m68k.sh`, the Genesis toolchain Vega builds ROMs with — macOS: `brew install cmake ninja` |
 | Xcode (optional) | `lyrac --target ios`/`ios-simulator` — builds for iOS, and runs in the Simulator; `lyra/tools/sdl3-ios.sh` builds SDL3 for it (with cmake and ninja). An iPhone or iPad also needs a provisioning profile Xcode made for your team (any project signed for the device makes one) and Developer Mode on |
 | zig and Docker (optional) | `lyrac --target linux-arm64`/`linux-x86_64` from a Mac — zig links (`brew install zig`), Docker runs |

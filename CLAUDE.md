@@ -19,7 +19,7 @@ Lyra is a programming language under active development. This workspace holds ei
 | `lyra-vscode-ext/` | TypeScript | VS Code extension — launches the LSP server |
 | `lyra-zed-ext/` | Rust (wasm) | Zed extension — launches the LSP server; owns its tree-sitter queries |
 | `lyra-website/` | Astro | Public site — dev blog and docs (Starlight) |
-| `vega/` | Lyra | Game studio: retro consoles, and modern platforms through `std.game` (SDL3 + Dear ImGui) — **private, proprietary** |
+| `vega/` | Lyra | Game studio on lyra's `ui`: retro consoles, and modern platforms through `std.game` (SDL3) — **private, proprietary** |
 | `sheliak/` | Lyra | Genesis emulator for Vega — MIT; its repo is private until published |
 | `termina/` | Lyra | Terminal emulator after Warp (blocks, an editor for the command line) — MIT; its repo is private until published |
 
