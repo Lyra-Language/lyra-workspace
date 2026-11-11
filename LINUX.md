@@ -128,7 +128,9 @@ also names
 **`lib/liblyra-accesskit.a`**, which on Linux is always *a stub* (AccessKit's bridge is macOS's
 for now): the `ui` framework links it, and nothing hears the window. So does
 **`lib/liblyra-gpu.a`** (`ui.gpu`'s renderer, Metal's so far): on Linux a stub, and a `ui` program
-draws with SDL's 2D renderer.
+draws with SDL's 2D renderer. **`lib/liblyra-audio.a`** (MP3, Ogg Vorbis, FLAC and WAV decoded,
+for `std.game.track` and Vega's tracks) is built from decoders vendored in `bindings/audio/`:
+nothing to install.
 
 ## 5. Build and test the grammar
 
