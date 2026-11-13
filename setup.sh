@@ -190,6 +190,21 @@ refresh_repo() {
 	fi
 }
 
+install_hooks() {
+	# A repo that ships hooks (lyra's tools/hooks/pre-push runs CI's format check on what a
+	# push carries) gets them through core.hooksPath, so an update to a hook arrives with a
+	# pull. A hooksPath already set elsewhere is the owner's choice and is left alone.
+	name=$1
+	[ -d "$name/tools/hooks" ] || return 0
+	have=$(git -C "$name" config --get core.hooksPath 2>/dev/null || true)
+	if [ -z "$have" ]; then
+		git -C "$name" config core.hooksPath tools/hooks
+		ok "hooks from tools/hooks"
+	elif [ "$have" != "tools/hooks" ]; then
+		warn "core.hooksPath is $have — tools/hooks not installed"
+	fi
+}
+
 for name in $REPOS; do
 	if [ ! -e "$name" ]; then
 		clone_repo "$name"
@@ -201,6 +216,9 @@ for name in $REPOS; do
 	else
 		info "${C_BOLD}$name${C_RESET}"
 		fail "$name" "directory exists but is not a Git repo — move it aside and re-run"
+	fi
+	if is_repo_root "$name" 2>/dev/null; then
+		install_hooks "$name"
 	fi
 	info ""
 done

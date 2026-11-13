@@ -173,6 +173,22 @@ function Invoke-RefreshRepo {
     }
 }
 
+function Install-Hooks {
+    # A repo that ships hooks (lyra's tools/hooks/pre-push runs CI's format check on what a
+    # push carries) gets them through core.hooksPath, so an update to a hook arrives with a
+    # pull. A hooksPath already set elsewhere is the owner's choice and is left alone. Git for
+    # Windows runs the hook with its own sh.
+    param([string]$Name)
+    if (-not (Test-Path -LiteralPath (Join-Path $Name 'tools/hooks') -PathType Container)) { return }
+    $have = (Invoke-Git @('-C', $Name, 'config', '--get', 'core.hooksPath')).Output
+    if (-not $have) {
+        [void](Invoke-Git @('-C', $Name, 'config', 'core.hooksPath', 'tools/hooks'))
+        Write-Ok 'hooks from tools/hooks'
+    } elseif ($have -ne 'tools/hooks') {
+        Write-Warn "core.hooksPath is $have - tools/hooks not installed"
+    }
+}
+
 foreach ($name in $Repos) {
     if (-not (Test-Path -LiteralPath $name)) {
         Invoke-CloneRepo $name
@@ -182,6 +198,9 @@ foreach ($name in $Repos) {
         Invoke-RefreshRepo $name
     } else {
         Add-Failure $name 'directory exists but is not a Git repo - move it aside and re-run'
+    }
+    if ((Test-Path -LiteralPath $name -PathType Container) -and (Test-RepoRoot $name)) {
+        Install-Hooks $name
     }
     Write-Host ''
 }

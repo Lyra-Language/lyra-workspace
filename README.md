@@ -84,6 +84,7 @@ Both scripts are idempotent: they clone what's missing, fetch what exists, and e
 - Flags combine: `./setup.sh --pull --https`.
 - `--https` affects **new clones only**; switch an existing repo with `git -C <repo> remote set-url origin …`.
 - `--pull` fast-forwards only a clean repo with no local commits. Dirty or diverged repos are reported and left untouched — never merged, rebased, stashed or reset.
+- A repo shipping `tools/hooks/` gets them as its `core.hooksPath` (unless one is set already): lyra's pre-push hook refuses a push CI's `lyrafmt --check` would fail. Skip it once with `git push --no-verify`.
 
 ## Verifying the workspace
 
