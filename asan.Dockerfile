@@ -42,8 +42,15 @@ FROM golang:1.26-bookworm
 # rather than choose. `-lz` links on macOS without a package and does not here, which is why
 # the round-trip test self-skips — and why it must not skip *here*, the one environment
 # whose job is to catch what macOS does not.
+#
+# libharfbuzz-dev and libfreetype-dev are `ui/`'s text (`bindings.harfbuzz`, `bindings.freetype`),
+# which every `ui.layout` program links: without them the `ui` layout, cascade and offset tests
+# skip (`skipWithoutText`, by pkg-config), as they did here until 11/16. CI installs the same.
+# fonts-dejavu-core is the font `ui.text` finds first on Linux (`SYSTEM_FONTS`): with the
+# libraries but no font, those tests would run and stop at "no font" rather than skip.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends clang-15 zlib1g-dev \
+    && apt-get install -y --no-install-recommends clang-15 zlib1g-dev libharfbuzz-dev \
+       libfreetype-dev fonts-dejavu-core \
     && ln -s /usr/bin/clang-15 /usr/bin/clang \
     && rm -rf /var/lib/apt/lists/*
 

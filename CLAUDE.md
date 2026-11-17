@@ -58,6 +58,7 @@ LEAKS=1 ./asan.sh         # also LeakSanitizer (expect known noise)
 - **Clears the container's Go build cache when `parser.c` changes** (keyed on size+mtime), since Go doesn't hash `#include`d sources.
 - **Preflights ASan** and fails hard if it can't link/run (Debian's `clang` lacks `libclang-rt-dev`; without it every ASan test skips).
 - **Carries the tree-sitter runtime** (built from source, pinned like CI — never Debian's too-old package) so lyrafmt, LSP formatting and the Lyra collector run rather than skip; a **preflight fails a stale image** built before it (`./asan.sh --rebuild`). The pin moves with CI's and `tree-sitter-lyra/package.json`'s.
+- **Carries HarfBuzz, FreeType and DejaVu Sans**, as CI does, so the `ui` layout, cascade and text tests run rather than skip; a preflight fails an image built without them.
 
 ## Critical Cross-Project Dependency
 

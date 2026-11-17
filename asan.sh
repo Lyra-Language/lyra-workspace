@@ -124,6 +124,13 @@ if ! docker run --rm "$IMAGE" pkg-config --exists tree-sitter >/dev/null 2>&1; t
     would silently SKIP. Rebuild with: ./asan.sh --rebuild"
 fi
 
+# And for HarfBuzz and FreeType, `ui`'s text: without them every `ui` layout, cascade and offset
+# test skips. An image built before 11/16 lacks them.
+if ! docker run --rm "$IMAGE" pkg-config --exists harfbuzz freetype2 >/dev/null 2>&1; then
+  die "the image has no HarfBuzz or FreeType, so the ui layout, cascade and offset tests would
+    silently SKIP. Rebuild with: ./asan.sh --rebuild"
+fi
+
 asan_options='abort_on_error=1'
 if [[ "${LEAKS:-0}" == 1 ]]; then
   asan_options="$asan_options:detect_leaks=1"
