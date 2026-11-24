@@ -223,6 +223,21 @@ for name in $REPOS; do
 	info ""
 done
 
+# --- test data ------------------------------------------------------------
+
+# Suites too large to track in a repo, fetched pinned by the repo that tests against them.
+# Each script does nothing when what it pins is already there.
+if [ -x lyra/tools/resvg-tests.sh ]; then
+	info "${C_BOLD}resvg's SVG tests${C_RESET} ${C_DIM}(lyra/cmd/lyrac/testdata/svg)${C_RESET}"
+	if out=$(lyra/tools/resvg-tests.sh 2>&1); then
+		ok "${out##*resvg tests: }"
+	else
+		fail "resvg-tests" "fetch failed"
+		note "$out"
+	fi
+	info ""
+fi
+
 # --- summary --------------------------------------------------------------
 
 if [ -n "$FAILED" ]; then

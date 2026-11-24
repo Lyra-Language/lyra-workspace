@@ -100,7 +100,8 @@ cd lyra-workspace && ./setup.sh
 
 `setup.sh` clones the eight sub-projects beside each other — `tree-sitter-lyra`, `lyra`,
 `lyra-vscode-ext`, `lyra-zed-ext`, `lyra-website`, `vega`, `sheliak` and `termina` — and
-ends with a status line for each. All eight should be ✓. It is safe to re-run; see
+ends with a status line for each, then fetches resvg's SVG test suite into
+`lyra/cmd/lyrac/testdata/svg/` (25 MB). All should be ✓. It is safe to re-run; see
 [Running setup](README.md#running-setup) for its flags.
 
 ## 4. Build Lyra

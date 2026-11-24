@@ -85,6 +85,7 @@ Both scripts are idempotent: they clone what's missing, fetch what exists, and e
 - `--https` affects **new clones only**; switch an existing repo with `git -C <repo> remote set-url origin …`.
 - `--pull` fast-forwards only a clean repo with no local commits. Dirty or diverged repos are reported and left untouched — never merged, rebased, stashed or reset.
 - A repo shipping `tools/hooks/` gets them as its `core.hooksPath` (unless one is set already): lyra's pre-push hook refuses a push CI's `lyrafmt --check` would fail. Skip it once with `git push --no-verify`.
+- Then it fetches test suites too large to track, pinned by the repo that uses them: resvg's SVG tests into `lyra/cmd/lyrac/testdata/svg/` (25 MB, `lyra/tools/resvg-tests.sh`; on Windows through Git for Windows' `bash`). A re-run does nothing when the pinned commit is there.
 
 ## Verifying the workspace
 

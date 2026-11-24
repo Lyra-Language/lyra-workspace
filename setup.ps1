@@ -205,6 +205,29 @@ foreach ($name in $Repos) {
     Write-Host ''
 }
 
+# --- test data ------------------------------------------------------------
+
+# Suites too large to track in a repo, fetched pinned by the repo that tests against them
+# (lyra/tools/resvg-tests.sh, run with Git for Windows' bash). Each does nothing when what
+# it pins is already there.
+if (Test-Path -LiteralPath 'lyra/tools/resvg-tests.sh') {
+    Write-Host "resvg's SVG tests" -NoNewline
+    Write-Host ' (lyra/cmd/lyrac/testdata/svg)' -ForegroundColor DarkGray
+    $bash = Get-Command bash -ErrorAction SilentlyContinue
+    if (-not $bash) {
+        Write-Warn 'bash not found (Git for Windows has it) - not fetched; run lyra/tools/resvg-tests.sh'
+    } else {
+        $out = & $bash.Source 'lyra/tools/resvg-tests.sh' 2>&1 | Out-String
+        if ($LASTEXITCODE -eq 0) {
+            Write-Ok (($out.Trim() -split "`n")[-1] -replace '^resvg tests: ', '')
+        } else {
+            Add-Failure 'resvg-tests' 'fetch failed'
+            Write-Note $out.Trim()
+        }
+    }
+    Write-Host ''
+}
+
 # --- summary --------------------------------------------------------------
 
 if ($script:Failed.Count -gt 0) {

@@ -39,6 +39,7 @@ Each sub-project is an **independent Git repo** under `Lyra-Language` — **not 
 - Points a repo that ships `tools/hooks/` at them (`core.hooksPath`, unless set otherwise):
   lyra's pre-push hook runs CI's `lyrafmt --check` on what a push carries.
 - `--pull` fast-forwards **only clean repos with no local commits** — dirty/diverged trees are reported, never merged or reset.
+- Fetches untracked test suites last, each pinned by the repo using it: resvg's SVG tests (`lyra/tools/resvg-tests.sh` → `lyra/cmd/lyrac/testdata/svg/`).
 - **No git-lfs needed**: `tree-sitter-lyra/src/parser.c` (~15 MB) is ordinary tracked text. Only historical commits need lfs.
 
 ## Running the Suite on Linux (`asan.sh`)
